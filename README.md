@@ -169,34 +169,32 @@
 
 ## 🐾交流与支持
 
-[☕ Donate as u like](https://www.buymeacoffee.com/hysn2001m) - 如果您觉得这个项目对您有帮助，可以考虑赞助。
-
-如果您也是独立开发者、技术爱好者，对 #技术变现 #AI创业 #跨境电商 #自动化工具 #视频创作 等话题感兴趣，欢迎加入社群交流。
+如果您对 AI 自媒体、内容自动化、对标账号拆解、短视频工作流等方向感兴趣，可以关注太阳鸟公众号，或添加个人微信交流。
 
 ### Creator
 
 <table>
     <td align="center">
-        <a href="https://sap-doc.nasdaddy.com/">
-            <img src="media/mp.jpg" width="200px" alt="NasDaddy公众号"/>
+        <a href="https://github.com/niupTang/douyin">
+            <img src="media/mp.jpg" width="200px" alt="太阳鸟公众号"/>
             <br />
-            <sub><b>微信公众号</b></sub>
+            <sub><b>太阳鸟公众号</b></sub>
         </a>
         <br />
-        <a href="https://github.com/dreammis/social-auto-upload/commits?author=dreammis" title="Code">💻</a>
+        <a href="https://github.com/niupTang/douyin" title="Code">💻</a>
         <br />
-        关注公众号，后台回复 `上传` 获取加群方式
+        关注公众号，获取 AI 自媒体自动化运营案例
     </td>
     <td align="center">
-        <a href="https://sap-doc.nasdaddy.com/">
-            <img src="media/QR.png" width="200px" alt="赞赏码/入群引导"/>
+        <a href="https://github.com/niupTang/douyin">
+            <img src="media/QR.png" width="200px" alt="太阳鸟个人微信"/>
             <br />
-            <sub><b>交流群 (通过公众号获取)</b></sub>
+            <sub><b>太阳鸟个人微信</b></sub>
         </a>
         <br />
-        <a href="https://sap-doc.nasdaddy.com/" title="Documentation">📖</a>
+        <a href="https://github.com/niupTang/douyin" title="Project">📖</a>
         <br />
-        如果您觉得项目有用，可以考虑打赏支持一下
+        添加微信，交流 AI 内容生产和自动化发布
     </td>
 </table>
 
