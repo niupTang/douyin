@@ -4,6 +4,8 @@ import AccountManagement from '../views/AccountManagement.vue'
 import MaterialManagement from '../views/MaterialManagement.vue'
 import PublishCenter from '../views/PublishCenter.vue'
 import About from '../views/About.vue'
+import DataView from '../views/DataView.vue'
+import BenchmarkManagement from '../views/BenchmarkManagement.vue'
 
 const routes = [
   {
@@ -25,6 +27,16 @@ const routes = [
     path: '/publish-center',
     name: 'PublishCenter',
     component: PublishCenter
+  },
+  {
+    path: '/data',
+    name: 'DataView',
+    component: DataView
+  },
+  {
+    path: '/benchmark-management',
+    name: 'BenchmarkManagement',
+    component: BenchmarkManagement
   },
   {
     path: '/about',

@@ -445,7 +445,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { Upload, Plus, Close, Folder } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAccountStore } from '@/stores/account'
@@ -490,6 +490,13 @@ const platforms = [
   { key: 1, name: '小红书' }
 ]
 
+const platformMap = {
+  3: '抖音',
+  2: '视频号',
+  1: '小红书',
+  4: '快手'
+}
+
 // tab页数据 - 默认只有一个tab
 const tabs = reactive([
   {
@@ -509,6 +516,17 @@ const tabs = reactive([
   }
 ])
 
+watch(
+  () => tabs.map(tab => tab.selectedPlatform),
+  (newPlatforms, oldPlatforms = []) => {
+    newPlatforms.forEach((platform, index) => {
+      if (oldPlatforms[index] !== undefined && oldPlatforms[index] !== platform && tabs[index]) {
+        tabs[index].selectedAccounts = []
+      }
+    })
+  }
+)
+
 // 账号相关状态
 const accountDialogVisible = ref(false)
 const tempSelectedAccounts = ref([])
@@ -519,12 +537,6 @@ const accountStore = useAccountStore()
 
 // 根据选择的平台获取可用账号列表
 const availableAccounts = computed(() => {
-  const platformMap = {
-    3: '抖音',
-    2: '视频号',
-    1: '小红书',
-    4: '快手'
-  }
   const currentPlatform = currentTab.value ? platformMap[currentTab.value.selectedPlatform] : null
   return currentPlatform ? accountStore.accounts.filter(acc => acc.platform === currentPlatform) : []
 })
@@ -732,6 +744,18 @@ const confirmPublish = async (tab) => {
       reject(new Error('请选择发布账号'))
       return
     }
+
+    const currentPlatformName = platformMap[tab.selectedPlatform]
+    const selectedAccountObjects = tab.selectedAccounts
+      .map(accountId => accountStore.accounts.find(acc => acc.id === accountId))
+      .filter(Boolean)
+    const invalidAccounts = selectedAccountObjects.filter(account => account.platform !== currentPlatformName)
+    if (invalidAccounts.length > 0) {
+      ElMessage.error('已选账号与当前平台不一致，请重新选择账号')
+      tab.selectedAccounts = []
+      reject(new Error('已选账号与当前平台不一致'))
+      return
+    }
     
     // 构造发布数据，符合后端API格式
     const publishData = {
@@ -739,10 +763,7 @@ const confirmPublish = async (tab) => {
       title: tab.title,
       tags: tab.selectedTopics, // 不带#号的话题列表
       fileList: tab.fileList.map(file => file.path), // 只发送文件路径
-      accountList: tab.selectedAccounts.map(accountId => {
-        const account = accountStore.accounts.find(acc => acc.id === accountId)
-        return account ? account.filePath : accountId
-      }), // 发送账号的文件路径
+      accountList: selectedAccountObjects.map(account => account.filePath), // 发送账号的文件路径
       enableTimer: tab.scheduleEnabled ? 1 : 0, // 是否启用定时发布，开启传1，不开启传0
       videosPerDay: tab.scheduleEnabled ? tab.videosPerDay || 1 : 1, // 每天发布视频数量，1-55
       dailyTimes: tab.scheduleEnabled ? tab.dailyTimes || ['10:00'] : ['10:00'], // 每天发布时间点

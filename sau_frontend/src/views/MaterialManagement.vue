@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="material-management">
     <div class="page-header">
       <h1>素材管理</h1>
@@ -35,7 +35,14 @@
           <el-table-column label="操作">
             <template #default="scope">
               <el-button size="small" @click="handlePreview(scope.row)">预览</el-button>
-              <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
+                            <el-button
+                v-if="isVideoFile(scope.row.filename)"
+                size="small"
+                type="primary"
+                @click="handleTalkingEdit(scope.row)"
+              >
+                口播剪辑
+              </el-button><el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -119,6 +126,45 @@
         </div>
       </div>
     </el-dialog>
+
+    <el-dialog
+      v-model="talkingEditDialogVisible"
+      title="口播剪辑"
+      width="520px"
+      @close="handleTalkingEditDialogClose"
+    >
+      <el-form label-width="110px">
+        <el-form-item label="素材">
+          <el-input :model-value="talkingEditMaterial?.filename || ''" disabled />
+        </el-form-item>
+        <el-form-item label="开始时间">
+          <el-input v-model="talkingEditForm.startTime" placeholder="例如 00:00:03，可留空" />
+        </el-form-item>
+        <el-form-item label="结束时间">
+          <el-input v-model="talkingEditForm.endTime" placeholder="例如 00:01:20，可留空" />
+        </el-form-item>
+        <el-form-item label="输出比例">
+          <el-radio-group v-model="talkingEditForm.aspectRatio">
+            <el-radio-button label="9:16">竖屏 9:16</el-radio-button>
+            <el-radio-button label="original">原比例</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="标题">
+          <el-input v-model="talkingEditForm.title" placeholder="可选，会加到视频顶部" />
+        </el-form-item>
+        <el-form-item label="输出文件名">
+          <el-input v-model="talkingEditForm.outputName" placeholder="例如 口播剪辑版.mp4" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="talkingEditDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="isTalkingEditing" @click="submitTalkingEdit">
+            {{ isTalkingEditing ? '生成中...' : '生成成片' }}
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -140,7 +186,17 @@ const isUploading = ref(false)
 // 对话框控制
 const uploadDialogVisible = ref(false)
 const previewDialogVisible = ref(false)
+const talkingEditDialogVisible = ref(false)
 const currentMaterial = ref(null)
+const talkingEditMaterial = ref(null)
+const isTalkingEditing = ref(false)
+const talkingEditForm = reactive({
+  startTime: '',
+  endTime: '',
+  aspectRatio: '9:16',
+  title: '',
+  outputName: ''
+})
 
 // 文件上传
 const fileList = ref([])
@@ -187,6 +243,55 @@ const handleUploadMaterial = () => {
   fileList.value = []
   customFilename.value = ''
   uploadDialogVisible.value = true
+}
+
+const handleTalkingEdit = (material) => {
+  talkingEditMaterial.value = material
+  talkingEditForm.startTime = ''
+  talkingEditForm.endTime = ''
+  talkingEditForm.aspectRatio = '9:16'
+  talkingEditForm.title = ''
+  talkingEditForm.outputName = `${material.filename.replace(/\.[^.]+$/, '')}_口播剪辑版.mp4`
+  talkingEditDialogVisible.value = true
+}
+
+const handleTalkingEditDialogClose = () => {
+  if (isTalkingEditing.value) return
+  talkingEditMaterial.value = null
+}
+
+const submitTalkingEdit = async () => {
+  if (!talkingEditMaterial.value) {
+    ElMessage.warning('请选择要剪辑的素材')
+    return
+  }
+
+  isTalkingEditing.value = true
+  try {
+    const response = await materialApi.talkingEdit({
+      file: talkingEditMaterial.value.file_path,
+      options: {
+        startTime: talkingEditForm.startTime.trim(),
+        endTime: talkingEditForm.endTime.trim(),
+        aspectRatio: talkingEditForm.aspectRatio,
+        title: talkingEditForm.title.trim(),
+        outputName: talkingEditForm.outputName.trim()
+      }
+    })
+
+    if (response.code === 200) {
+      ElMessage.success('口播剪辑已生成')
+      talkingEditDialogVisible.value = false
+      await fetchMaterials()
+    } else {
+      ElMessage.error(response.msg || '口播剪辑失败')
+    }
+  } catch (error) {
+    console.error('口播剪辑失败:', error)
+    ElMessage.error('口播剪辑失败: ' + (error.message || '未知错误'))
+  } finally {
+    isTalkingEditing.value = false
+  }
 }
 
 // 关闭上传对话框时清空变量

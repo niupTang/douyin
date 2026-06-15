@@ -32,6 +32,10 @@
               <el-icon><Upload /></el-icon>
               <span>发布中心</span>
             </el-menu-item>
+            <el-menu-item index="/benchmark-management">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>对标管理</span>
+            </el-menu-item>
             <el-menu-item index="/website">
               <el-icon><Monitor /></el-icon>
               <span>网站</span>

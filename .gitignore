@@ -180,6 +180,9 @@ dist/
 node_modules/
 package-lock.json
 
+# Playwright browser cache
+ms-playwright/
+
 # database
 db/database.db
 
