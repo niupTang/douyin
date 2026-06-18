@@ -163,9 +163,7 @@
 
 如果您需要搭建自己的内容运营系统，可以基于这个版本继续扩展，比如接入更多平台、增加评论分析、自动生成选题、自动剪辑视频、自动生成封面和自动发布。
 
-## 📃详细文档
 
-更详细的文档和说明，请查看：[social-auto-upload 官方文档](https://sap-doc.nasdaddy.com/)
 
 ## 🐾交流与支持
 
@@ -198,47 +196,9 @@
     </td>
 </table>
 
-### Active Core Team
-
-<table>
-    <td align="center">
-        <a href="https://leedebug.github.io/">
-            <img src="media/edan-qrcode.png" width="200px" alt="Edan Lee"/>
-            <br />
-            <sub><b>Edan Lee</b></sub>
-        </a>
-        <br />
-        <a href="https://github.com/dreammis/social-auto-upload/commits?author=LeeDebug" title="Code">💻</a>
-        <a href="https://leedebug.github.io/" title="Documentation">📖</a>
-        <br />
-        封装了 api 接口和 web 前端管理界面
-        <br />
-        （请注明来意：进群、学习、企业咨询等）
-    </td>
-</table>
-
-## 🤝贡献指南
-
-欢迎各种形式的贡献，包括但不限于：
-
--   提交 Bug报告 和 Feature请求。
--   改进代码、文档。
--   分享使用经验和教程。
-
-如果您希望贡献代码，请遵循以下步骤：
-
-1.  Fork 本仓库。
-2.  创建一个新的分支 (`git checkout -b feature/YourFeature` 或 `bugfix/YourBugfix`)。
-3.  提交您的更改 (`git commit -m 'Add some feature'`)。
-4.  Push到您的分支 (`git push origin feature/YourFeature`)。
-5.  创建一个 Pull Request。
 
 ## 📜许可证
 
 本项目暂时采用 [MIT License](LICENSE) 开源许可证。
 
-## ⭐Star-History
-
-> 如果这个项目对您有帮助，请给一个 ⭐ Star 以表示支持！
-
-[![Star History Chart](https://api.star-history.com/svg?repos=dreammis/social-auto-upload&type=Date)](https://star-history.com/#dreammis/social-auto-upload&Date)
+https://star-history.com/#dreammis/social-auto-upload&Date)
