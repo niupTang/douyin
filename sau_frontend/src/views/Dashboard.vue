@@ -204,90 +204,74 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   User, UserFilled, Platform, List, Document, 
   Upload, Timer, DataAnalysis 
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { dashboardApi } from '@/api/dashboard'
 
 const router = useRouter()
 
 // 账号统计数据
 const accountStats = reactive({
-  total: 12,
-  normal: 10,
-  abnormal: 2
+  total: 0,
+  normal: 0,
+  abnormal: 0
 })
 
 // 平台统计数据
 const platformStats = reactive({
-  total: 4,
-  kuaishou: 3,
-  douyin: 4,
-  channels: 2,
-  xiaohongshu: 3
+  total: 0,
+  kuaishou: 0,
+  douyin: 0,
+  channels: 0,
+  xiaohongshu: 0
 })
 
 // 任务统计数据
 const taskStats = reactive({
-  total: 24,
-  completed: 18,
-  inProgress: 5,
-  failed: 1
+  total: 0,
+  completed: 0,
+  inProgress: 0,
+  failed: 0
 })
 
 // 内容统计数据
 const contentStats = reactive({
-  total: 36,
-  published: 30,
-  draft: 6
+  total: 0,
+  published: 0,
+  draft: 0
 })
 
 // 最近任务数据
-const recentTasks = ref([
-  {
-    id: 1,
-    title: '快手视频自动发布',
-    platform: '快手',
-    account: '快手账号1',
-    createTime: '2024-05-01 10:30:00',
-    status: '已完成'
-  },
-  {
-    id: 2,
-    title: '抖音视频定时发布',
-    platform: '抖音',
-    account: '抖音账号1',
-    createTime: '2024-05-01 11:15:00',
-    status: '进行中'
-  },
-  {
-    id: 3,
-    title: '视频号内容上传',
-    platform: '视频号',
-    account: '视频号账号1',
-    createTime: '2024-05-01 14:20:00',
-    status: '待执行'
-  },
-  {
-    id: 4,
-    title: '小红书图文发布',
-    platform: '小红书',
-    account: '小红书账号1',
-    createTime: '2024-05-01 16:45:00',
-    status: '已失败'
-  },
-  {
-    id: 5,
-    title: '快手短视频批量上传',
-    platform: '快手',
-    account: '快手账号2',
-    createTime: '2024-05-02 09:10:00',
-    status: '待执行'
+const recentTasks = ref([])
+
+const assignStats = (target, source = {}) => {
+  Object.keys(target).forEach((key) => {
+    target[key] = Number(source[key] || 0)
+  })
+}
+
+const fetchDashboardStats = async () => {
+  try {
+    const res = await dashboardApi.getStats()
+    const data = res.data || {}
+    assignStats(accountStats, data.accountStats)
+    assignStats(platformStats, data.platformStats)
+    assignStats(taskStats, data.taskStats)
+    assignStats(contentStats, data.contentStats)
+    recentTasks.value = data.recentTasks || []
+  } catch (error) {
+    console.error('获取首页统计失败:', error)
   }
-])
+}
+
+onMounted(() => {
+  fetchDashboardStats()
+})
 
 // 根据平台获取标签类型
 const getPlatformTagType = (platform) => {

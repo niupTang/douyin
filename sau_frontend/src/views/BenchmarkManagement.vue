@@ -145,7 +145,23 @@
 
           <template v-if="videoAnalysis">
             <el-alert
-              v-if="videoAnalysis.analysis_type === 'metadata'"
+              v-if="videoAnalysis.analysis_type === 'codex_cli'"
+              title="当前为 Codex CLI 深度拆解结果，已结合标题、文案、链接、封面和同步数据进行对标分析。"
+              type="success"
+              show-icon
+              :closable="false"
+              class="analysis-tip"
+            />
+            <el-alert
+              v-else-if="videoAnalysis.analysis_type === 'metadata_fallback'"
+              title="Codex CLI 暂未返回可用结果，当前展示规则兜底拆解。可稍后点击“重新拆解”再试。"
+              type="warning"
+              show-icon
+              :closable="false"
+              class="analysis-tip"
+            />
+            <el-alert
+              v-else-if="videoAnalysis.analysis_type === 'metadata'"
               title="当前为基于已同步标题/封面/链接的元数据拆解，深度版可继续接入评论、详情页和视频转写。"
               type="info"
               show-icon

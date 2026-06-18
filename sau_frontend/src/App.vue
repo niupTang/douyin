@@ -28,6 +28,14 @@
               <el-icon><Picture /></el-icon>
               <span>素材管理</span>
             </el-menu-item>
+            <el-menu-item index="/video-edit-center">
+              <el-icon><VideoPlay /></el-icon>
+              <span>视频剪辑</span>
+            </el-menu-item>
+            <el-menu-item index="/one-click-video-edit">
+              <el-icon><MagicStick /></el-icon>
+              <span>一键剪辑</span>
+            </el-menu-item>
             <el-menu-item index="/publish-center">
               <el-icon><Upload /></el-icon>
               <span>发布中心</span>
@@ -71,7 +79,7 @@ import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { 
   HomeFilled, User, Monitor, DataAnalysis, 
-  Fold, Picture, Upload
+  Fold, Picture, Upload, VideoPlay, MagicStick
 } from '@element-plus/icons-vue'
 
 const route = useRoute()

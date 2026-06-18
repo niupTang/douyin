@@ -6,6 +6,8 @@ import PublishCenter from '../views/PublishCenter.vue'
 import About from '../views/About.vue'
 import DataView from '../views/DataView.vue'
 import BenchmarkManagement from '../views/BenchmarkManagement.vue'
+import VideoEditCenter from '../views/VideoEditCenter.vue'
+import OneClickVideoEdit from '../views/OneClickVideoEdit.vue'
 
 const routes = [
   {
@@ -22,6 +24,16 @@ const routes = [
     path: '/material-management',
     name: 'MaterialManagement',
     component: MaterialManagement
+  },
+  {
+    path: '/video-edit-center',
+    name: 'VideoEditCenter',
+    component: VideoEditCenter
+  },
+  {
+    path: '/one-click-video-edit',
+    name: 'OneClickVideoEdit',
+    component: OneClickVideoEdit
   },
   {
     path: '/publish-center',
