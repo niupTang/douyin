@@ -180,7 +180,10 @@ class DouYinVideo(object):
         await self.set_thumbnail(page, self.thumbnail_path)
 
         # 更换可见元素
-        await self.set_location(page, "杭州市")
+        try:
+            await self.set_location(page, "杭州市")
+        except Exception as e:
+            douyin_logger.warning(f"  [-] 设置地理位置失败(不影响发布): {str(e)[:50]}")
 
         # 頭條/西瓜
         third_part_element = '[class^="info"] > [class^="first-part"] div div.semi-switch'

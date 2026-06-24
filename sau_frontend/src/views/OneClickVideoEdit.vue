@@ -13,13 +13,13 @@
     <main class="one-click-main">
       <header class="hero-bar">
         <div>
-          <p>小龙虾 / Codex AI 视频工作台</p>
-          <h1>三句话，让 Codex 帮你把对标内容做成视频</h1>
+          <p>AI 视频剪辑工作台</p>
+          <h1>从真实素材提取文案，再生成二创剪辑成片</h1>
         </div>
         <div class="hero-actions">
           <el-button type="primary" @click="runWorkflow" :loading="isRunning">
-            <el-icon><Plus /></el-icon>
-            新建任务
+            <el-icon><MagicStick /></el-icon>
+            开始二创剪辑
           </el-button>
           <el-button>
             <el-icon><EditPen /></el-icon>
@@ -82,6 +82,36 @@
               resize="none"
               placeholder="识别后的视频口播原文会出现在这里，并作为一键剪辑的参考文案。"
             />
+            <el-button
+              type="primary"
+              class="rewrite-clip-button"
+              :loading="isRunning"
+              @click="runWorkflow"
+            >
+              <el-icon><MagicStick /></el-icon>
+              开始二创剪辑
+            </el-button>
+          </div>
+
+          <div class="material-bin">
+            <div class="mini-head">
+              <span>剪辑素材</span>
+              <small>{{ videoMaterials.length }} 个视频素材</small>
+            </div>
+            <div class="material-list">
+              <button
+                v-for="material in videoMaterials.slice(0, 5)"
+                :key="material.file_path"
+                :class="{ active: selectedSourceFile === material.file_path }"
+                @click="selectedSourceFile = material.file_path"
+              >
+                <span class="material-icon">
+                  <el-icon><Film /></el-icon>
+                </span>
+                <strong>{{ material.filename }}</strong>
+                <em>{{ material.filesize || 0 }}MB</em>
+              </button>
+            </div>
           </div>
 
           <div class="rules-card">
@@ -165,6 +195,7 @@
                 <span>{{ block.title }}</span>
                 <p>{{ block.text }}</p>
               </article>
+              <el-empty v-if="scriptBlocks.length === 0" description="暂无二创文案，先提取文案或开始二创剪辑" :image-size="72" />
             </div>
           </div>
 
@@ -191,6 +222,74 @@
               </button>
             </div>
           </div>
+
+          <div class="editor-board">
+            <div class="section-line">
+              <h3>精修时间线</h3>
+              <div class="timeline-tools">
+                <button class="active">时间线</button>
+                <button>关键帧</button>
+                <button>画中画</button>
+              </div>
+            </div>
+
+            <div class="timeline-ruler">
+              <span v-for="tick in timelineTicks" :key="tick">{{ tick }}</span>
+            </div>
+
+            <div class="edit-timeline">
+              <div v-for="track in editTracks" :key="track.name" class="edit-track">
+                <label>
+                  <el-icon><component :is="track.icon" /></el-icon>
+                  {{ track.name }}
+                </label>
+                <div class="track-lane">
+                  <span
+                    v-for="clip in track.clips"
+                    :key="clip.label"
+                    class="timeline-clip"
+                    :class="track.type"
+                    :style="{ width: clip.width, marginLeft: clip.offset }"
+                  >
+                    {{ clip.label }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="keyframe-panel">
+              <div class="mini-head">
+                <span>关键帧</span>
+                <button @click="addKeyframe">添加关键帧</button>
+              </div>
+              <div class="keyframe-row">
+                <button
+                  v-for="frame in keyframes"
+                  :key="frame.time"
+                  :class="{ active: activeKeyframe === frame.time }"
+                  @click="activeKeyframe = frame.time"
+                >
+                  <i></i>
+                  <strong>{{ frame.time }}</strong>
+                  <span>{{ frame.action }}</span>
+                </button>
+                <el-empty v-if="keyframes.length === 0" description="暂无关键帧，ASR 后会按时间戳生成" :image-size="62" />
+              </div>
+            </div>
+
+            <div class="pip-panel">
+              <div>
+                <h4>画中画</h4>
+                <p>控制素材叠加的位置、大小和透明度，后续可导出为 OpenCut 轨道。</p>
+              </div>
+              <div class="pip-controls">
+                <label>横向 <el-slider v-model="pipForm.x" :min="0" :max="100" /></label>
+                <label>纵向 <el-slider v-model="pipForm.y" :min="0" :max="100" /></label>
+                <label>缩放 <el-slider v-model="pipForm.scale" :min="20" :max="160" /></label>
+                <label>透明 <el-slider v-model="pipForm.opacity" :min="0" :max="100" /></label>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section class="output-panel">
@@ -203,18 +302,26 @@
           </div>
 
           <div class="preview-card">
-            <div class="speaker">
-              <div class="face"></div>
-              <div class="mic"></div>
+            <video
+              v-if="outputFile"
+              ref="videoPlayer"
+              :src="outputVideoUrl"
+              controls
+              preload="metadata"
+              crossorigin="anonymous"
+              class="output-video"
+            />
+            <div v-else class="preview-placeholder">
+              <el-icon :size="54" color="#4c6a9f"><Film /></el-icon>
+              <p>{{ previewSubtitle }}</p>
             </div>
-            <p>{{ previewSubtitle }}</p>
             <div class="progress-line">
               <i :style="{ width: `${progress}%` }"></i>
             </div>
             <div class="preview-tools">
-              <el-icon><VideoPlay /></el-icon>
-              <span>01:10 / 01:29</span>
-              <el-icon><Mute /></el-icon>
+              <el-icon @click="$refs.videoPlayer?.play()"><VideoPlay /></el-icon>
+              <span>{{ outputFile ? '已生成成片' : '待生成' }}</span>
+              <el-icon @click="$refs.videoPlayer?.pause()"><VideoPause /></el-icon>
               <el-icon><Setting /></el-icon>
               <el-icon><FullScreen /></el-icon>
             </div>
@@ -222,8 +329,8 @@
 
           <div class="output-actions">
             <el-button type="primary" @click="runWorkflow" :loading="isRunning">
-              <el-icon><VideoPlay /></el-icon>
-              播放
+              <el-icon><MagicStick /></el-icon>
+              二创剪辑
             </el-button>
             <el-button :disabled="!outputFile" @click="downloadOutput">
               <el-icon><Download /></el-icon>
@@ -251,6 +358,7 @@
                 <span>{{ log.desc }}</span>
                 <time>{{ log.time }}</time>
               </li>
+              <el-empty v-if="logs.length === 0" description="暂无生成日志" :image-size="62" />
             </ul>
           </div>
         </section>
@@ -258,8 +366,8 @@
 
       <footer class="bottom-banner">
         <div class="loop-mark">∞</div>
-        <strong>昨日闭环 → 今日视频</strong>
-        <span>昨天完成对标采集，今天一键生成视频，这就是完整的 AI 内容闭环。</span>
+        <strong>素材 → 文案 → 成片</strong>
+        <span>选择真实素材，完成 ASR 识别、二创文案、配音和剪辑输出。</span>
         <el-button>查看闭环记录</el-button>
       </footer>
     </main>
@@ -282,7 +390,6 @@ import {
   FullScreen,
   MagicStick,
   Microphone,
-  Mute,
   Picture,
   Plus,
   Promotion,
@@ -291,13 +398,14 @@ import {
   Share,
   UploadFilled,
   VideoCamera,
+  VideoPause,
   VideoPlay,
   View
 } from '@element-plus/icons-vue'
 
-const topic = ref('剪出一个知识口播视频，使用云泽大叔的 TTS，把对标内容改成自己的表达。')
+const topic = ref('')
 const activeStage = ref('extract')
-const progress = ref(72)
+const progress = ref(0)
 const isRunning = ref(false)
 const isAsrRunning = ref(false)
 const outputFile = ref('')
@@ -346,30 +454,63 @@ const rewriteRules = [
 ]
 
 const stages = ref([
-  { key: 'extract', title: '文案提取 Extract', desc: '从对标视频或文案中提取钩子、观点、案例和转化点', icon: markRaw(View), status: 'done' },
-  { key: 'rewrite', title: '原文生成 Rewrite', desc: '基于你的 IP 语气重写成可口播文案', icon: markRaw(EditPen), status: 'done' },
-  { key: 'tts', title: 'TTS 合成 Voice', desc: '调用 x4_lingbosong 音色生成自然旁白', icon: markRaw(Microphone), status: 'done' },
-  { key: 'clip', title: '智能剪辑 Clip', desc: '自动生成分镜、字幕、动画弹窗和成片', icon: markRaw(MagicStick), status: 'running' }
+  { key: 'extract', title: '文案提取 Extract', desc: '从对标视频或文案中提取钩子、观点、案例和转化点', icon: markRaw(View), status: 'pending' },
+  { key: 'rewrite', title: '原文生成 Rewrite', desc: '基于你的 IP 语气重写成可口播文案', icon: markRaw(EditPen), status: 'pending' },
+  { key: 'tts', title: 'TTS 合成 Voice', desc: '调用 x4_lingbosong 音色生成自然旁白', icon: markRaw(Microphone), status: 'pending' },
+  { key: 'clip', title: '智能剪辑 Clip', desc: '自动生成分镜、字幕、动画弹窗和成片', icon: markRaw(MagicStick), status: 'pending' }
 ])
 
-const scriptBlocks = ref([
-  { title: '开场钩子', text: '你以为 AI 剪辑只是省时间？真正厉害的是，它能把你的内容生产变成一条稳定流水线。' },
-  { title: '核心观点', text: '对标不是抄别人，而是拆结构、拆节奏、拆表达，再把它变成自己的内容资产。' },
-  { title: '行动建议', text: '给 Codex 三句话：目标、素材、风格，它就能帮你完成文案、配音和剪辑。' }
+const scriptBlocks = ref([])
+
+const storyboard = reactive([])
+
+const timelineTicks = ['00:00', '00:05', '00:10', '00:15', '00:20', '00:25', '00:30']
+
+const editTracks = computed(() => [
+  {
+    name: '主视频',
+    type: 'video',
+    icon: markRaw(Film),
+    clips: storyboard.map((shot, index) => ({
+      label: shot.title || `镜头 ${index + 1}`,
+      width: `${Math.max(16, Number.parseInt(shot.duration, 10) * 5 || 24)}%`,
+      offset: index === 0 ? '0' : '2%'
+    }))
+  },
+  {
+    name: '字幕',
+    type: 'caption',
+    icon: markRaw(EditPen),
+    clips: scriptBlocks.value.map(block => ({
+      label: block.title,
+      width: '23%',
+      offset: '1%'
+    }))
+  },
+  {
+    name: '音频',
+    type: 'audio',
+    icon: markRaw(Microphone),
+    clips: [{ label: audioFile.value ? 'TTS 配音' : '待生成配音', width: '72%', offset: '0' }]
+  },
+  {
+    name: '画中画',
+    type: 'pip',
+    icon: markRaw(Picture),
+    clips: [{ label: selectedSourceFile.value ? '素材叠加' : '选择素材', width: '28%', offset: '18%' }]
+  }
 ])
 
-const storyboard = reactive([
-  { title: '镜头 1', copy: '真人口播开场，字幕强调痛点', duration: '5s', theme: 'talking', icon: markRaw(VideoCamera) },
-  { title: '镜头 2', copy: '展示对标内容拆解结构', duration: '7s', theme: 'data', icon: markRaw(Aim) },
-  { title: '镜头 3', copy: 'TTS 旁白 + 动画关键词弹窗', duration: '8s', theme: 'motion', icon: markRaw(MagicStick) }
-])
+const keyframes = ref([])
+const activeKeyframe = ref('')
+const pipForm = reactive({
+  x: 68,
+  y: 18,
+  scale: 64,
+  opacity: 92
+})
 
-const logs = ref([
-  { title: '文案提取', desc: '对标内容结构提取完成', time: '09:21:10', done: true },
-  { title: '原文生成', desc: '二创口播稿生成完成', time: '09:23:42', done: true },
-  { title: 'TTS 合成', desc: 'x4_lingbosong 配音生成完成', time: '09:28:55', done: true },
-  { title: '智能剪辑', desc: '分镜、字幕、动画合成中', time: '09:30:18', done: false }
-])
+const logs = ref([])
 
 const outputStatus = computed(() => {
   if (isRunning.value) return '处理中 10m'
@@ -377,10 +518,16 @@ const outputStatus = computed(() => {
   return '待生成'
 })
 const previewSubtitle = computed(() => {
-  if (activeStage.value === 'extract') return '正在提取对标内容里的钩子和核心观点。'
-  if (activeStage.value === 'rewrite') return 'AI 不会取代你，但会用 AI 的人会取代你。'
-  if (activeStage.value === 'tts') return 'TTS 合成完成后，字幕会自动对齐口播节奏。'
-  return '三句话，让 Codex 帮你把对标内容做成视频。'
+  if (asrTranscript.value) return asrTranscript.value.slice(0, 42)
+  if (scriptBlocks.value.length) return scriptBlocks.value[0].text.slice(0, 42)
+  if (selectedSourceFile.value) return '已选择素材，点击 ASR 提取真实口播文案。'
+  return '请选择素材或输入主题后开始二创剪辑。'
+})
+
+const outputVideoUrl = computed(() => {
+  if (!outputFile.value) return ''
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5409'
+  return `${baseUrl}/download/${outputFile.value}`
 })
 
 const stageStatusText = (stage) => {
@@ -390,13 +537,56 @@ const stageStatusText = (stage) => {
   return '待处理'
 }
 
-const generateScript = () => {
+const generateScript = async () => {
+  if (!topic.value && !asrTranscript.value) {
+    ElMessage.warning('请先输入主题或完成 ASR 识别')
+    return
+  }
   activeStage.value = 'rewrite'
-  scriptBlocks.value = [
-    { title: '开头', text: '如果你每天都在刷对标账号，却不知道怎么变成自己的内容，这套流程就是为你准备的。' },
-    { title: '中段', text: 'Codex 先提取文案结构，再生成你的口播原文，接着调用 TTS 合成旁白。' },
-    { title: '结尾', text: '最后智能剪辑会把分镜、字幕和动画组合成一条可以发布的视频。' }
-  ]
+  markBeforeDone('rewrite')
+  try {
+    const response = await materialApi.oneClickRewrite({
+      topic: topic.value,
+      referenceText: asrTranscript.value || topic.value
+    })
+    if (response.code === 200) {
+      const data = response.data || {}
+      if (data.script?.blocks?.length) {
+        scriptBlocks.value = data.script.blocks
+      }
+      if (data.storyboard?.length) {
+        storyboard.splice(0, storyboard.length, ...mapStoryboard(data.storyboard))
+      }
+      setStageStatus('rewrite', 'done')
+      ElMessage.success('二创文案生成完成')
+    } else {
+      throw new Error(response.msg || '文案生成失败')
+    }
+  } catch (error) {
+    console.error('文案生成失败:', error)
+    setStageStatus('rewrite', 'failed')
+    ElMessage.error('文案生成失败：' + (error.message || '未知错误'))
+  }
+}
+
+const mapStoryboard = (items) => {
+  const themes = ['talking', 'data', 'motion', 'data']
+  const icons = [VideoCamera, Aim, MagicStick, Picture]
+  return (items || []).map((shot, index) => ({
+    title: shot.title || `镜头 ${index + 1}`,
+    copy: shot.copy || '',
+    duration: `${shot.duration || 6}s`,
+    theme: themes[index % 4],
+    icon: markRaw(icons[index % 4])
+  }))
+}
+
+const addKeyframe = () => {
+  const nextIndex = keyframes.value.length + 1
+  const second = String(Math.min(59, nextIndex * 6)).padStart(2, '0')
+  const time = `00:${second}`
+  keyframes.value.push({ time, action: '自定义动作' })
+  activeKeyframe.value = time
 }
 
 const setStageStatus = (key, status) => {
@@ -416,9 +606,23 @@ const markBeforeDone = (key) => {
 
 const nowTime = () => new Date().toLocaleTimeString('zh-CN', { hour12: false })
 
+const formatTimelineTime = (seconds) => {
+  const value = Math.max(0, Math.round(Number(seconds) || 0))
+  const minute = String(Math.floor(value / 60)).padStart(2, '0')
+  const second = String(value % 60).padStart(2, '0')
+  return `${minute}:${second}`
+}
+
 const syncWorkflowResult = (data) => {
   if (data.transcript?.text) {
     asrTranscript.value = data.transcript.text
+  }
+  if (data.transcript?.segments?.length) {
+    keyframes.value = data.transcript.segments.slice(0, 8).map((segment, index) => ({
+      time: formatTimelineTime(segment.start || 0),
+      action: segment.text || `片段 ${index + 1}`
+    }))
+    activeKeyframe.value = keyframes.value[0]?.time || ''
   }
   if (data.script?.blocks?.length) {
     scriptBlocks.value = data.script.blocks
@@ -462,9 +666,13 @@ const runWorkflow = async () => {
     { title: '智能剪辑', desc: '等待成片合成', time: '--:--:--', done: false }
   ]
   stages.value = stages.value.map(stage => ({ ...stage, status: 'pending' }))
+  let stagesDone = false
+  const stageTimer = setTimeout(() => {
+    if (!stagesDone) markBeforeDone('extract')
+    setTimeout(() => { if (!stagesDone) markBeforeDone('rewrite') }, 2000)
+    setTimeout(() => { if (!stagesDone) markBeforeDone('tts') }, 4000)
+  }, 1000)
   try {
-    activeStage.value = 'extract'
-    markBeforeDone('extract')
     progress.value = 22
     const response = await materialApi.oneClickRun({
       topic: topic.value,
@@ -506,6 +714,8 @@ const runWorkflow = async () => {
     setStageStatus(activeStage.value, 'failed')
     ElMessage.error('一键剪辑失败：' + (error.message || '未知错误'))
   } finally {
+    stagesDone = true
+    clearTimeout(stageTimer)
     isRunning.value = false
   }
 }
@@ -550,6 +760,12 @@ const runAsr = async () => {
     })
     if (response.code === 200) {
       asrTranscript.value = response.data?.transcript?.text || ''
+      const segments = response.data?.transcript?.segments || []
+      keyframes.value = segments.slice(0, 8).map((segment, index) => ({
+        time: formatTimelineTime(segment.start || 0),
+        action: segment.text || `片段 ${index + 1}`
+      }))
+      activeKeyframe.value = keyframes.value[0]?.time || ''
       if (asrTranscript.value) {
         ElMessage.success('ASR 文案提取完成')
       } else {
@@ -757,10 +973,12 @@ onMounted(() => {
 }
 
 .asr-card,
+.material-bin,
 .rules-card,
 .voice-card,
 .script-card,
 .storyboard,
+.editor-board,
 .log-panel {
   margin-top: 16px;
   padding: 14px;
@@ -779,6 +997,72 @@ onMounted(() => {
   grid-template-columns: minmax(0, 1fr) 126px;
   gap: 10px;
   margin: 12px 0;
+}
+
+.rewrite-clip-button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 0;
+  background: linear-gradient(135deg, #4f7cff, #8a4dff);
+  font-weight: 700;
+}
+
+.material-bin {
+  border-color: rgba(52, 211, 153, 0.22);
+  background: rgba(8, 47, 73, 0.32);
+}
+
+.material-bin small {
+  color: #93a4ba;
+}
+
+.material-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.material-list button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  color: #dbe6f7;
+  background: rgba(15, 23, 42, 0.64);
+  text-align: left;
+  cursor: pointer;
+
+  &.active {
+    border-color: #34d399;
+    background: rgba(20, 83, 45, 0.28);
+  }
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  em {
+    color: #8fa0b7;
+    font-size: 11px;
+    font-style: normal;
+  }
+}
+
+.material-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #1d4ed8, #7c3aed);
 }
 
 .mini-head,
@@ -986,6 +1270,189 @@ onMounted(() => {
   cursor: pointer;
 }
 
+.editor-board {
+  border-color: rgba(96, 165, 250, 0.22);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.timeline-tools {
+  display: flex;
+  gap: 6px;
+}
+
+.timeline-tools button {
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: rgba(30, 41, 59, 0.84);
+
+  &.active {
+    color: #fff;
+    background: rgba(79, 124, 255, 0.38);
+  }
+}
+
+.timeline-ruler {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin: 14px 0 8px;
+  padding-left: 88px;
+  color: #78869d;
+  font-size: 11px;
+}
+
+.edit-timeline {
+  display: grid;
+  gap: 10px;
+}
+
+.edit-track {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  align-items: center;
+  gap: 8px;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #aeb9ca;
+    font-size: 12px;
+  }
+}
+
+.track-lane {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 5px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.timeline-clip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 68px;
+  height: 28px;
+  padding: 0 10px;
+  overflow: hidden;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.timeline-clip.video {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+}
+
+.timeline-clip.caption {
+  background: rgba(79, 124, 255, 0.42);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+}
+
+.timeline-clip.audio {
+  background: linear-gradient(135deg, #059669, #14b8a6);
+}
+
+.timeline-clip.pip {
+  background: linear-gradient(135deg, #f59e0b, #db2777);
+}
+
+.keyframe-panel,
+.pip-panel {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 9px;
+  background: rgba(2, 6, 23, 0.42);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.keyframe-panel .mini-head button {
+  border: 0;
+  color: #93c5fd;
+  background: transparent;
+  cursor: pointer;
+}
+
+.keyframe-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 10px;
+}
+
+.keyframe-row button {
+  min-height: 58px;
+  padding: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  color: #dbeafe;
+  background: rgba(30, 41, 59, 0.7);
+  text-align: left;
+  cursor: pointer;
+
+  &.active {
+    border-color: #fbbf24;
+    background: rgba(120, 53, 15, 0.36);
+  }
+
+  i {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 6px;
+    transform: rotate(45deg);
+    background: #fbbf24;
+  }
+
+  strong,
+  span {
+    display: block;
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  span {
+    color: #aeb9ca;
+  }
+}
+
+.pip-panel {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 12px;
+
+  h4 {
+    margin: 0 0 6px;
+  }
+
+  p {
+    margin: 0;
+    color: #93a4ba;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+}
+
+.pip-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+
+  label {
+    color: #cbd5e1;
+    font-size: 12px;
+  }
+}
+
 .preview-card {
   position: relative;
   min-height: 310px;
@@ -998,44 +1465,32 @@ onMounted(() => {
     linear-gradient(135deg, #18243a, #15111b);
 }
 
-.speaker {
+.preview-placeholder {
   position: absolute;
   inset: 34px 44px 76px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+
+  p {
+    margin: 0;
+    color: #9faabd;
+    font-size: 14px;
+    text-align: center;
+    max-width: 80%;
+  }
 }
 
-.face {
-  width: 126px;
-  height: 126px;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 36%, #111827 0 5px, transparent 6px),
-    radial-gradient(circle at 65% 36%, #111827 0 5px, transparent 6px),
-    linear-gradient(#f6c7a0, #d99774);
-  box-shadow: 0 0 0 18px #111827, 0 0 0 34px #1f2937;
-}
-
-.mic {
+.output-video {
   position: absolute;
-  right: 28%;
-  bottom: 20px;
-  width: 28px;
-  height: 80px;
-  border-radius: 999px;
-  background: #0f172a;
-  transform: rotate(-22deg);
-}
-
-.preview-card p {
-  position: absolute;
-  left: 28px;
-  right: 28px;
-  bottom: 62px;
-  margin: 0;
-  color: #fff;
-  font-size: 18px;
-  text-align: center;
+  inset: 0;
+  width: 100%;
+  height: calc(100% - 44px);
+  object-fit: contain;
+  background: #000;
+  border-radius: 12px 12px 0 0;
 }
 
 .progress-line {

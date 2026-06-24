@@ -100,6 +100,26 @@
             </div>
           </el-card>
         </el-col>
+        <!-- 流量统计卡片 -->
+        <el-col :span="6">
+          <el-card class="stat-card">
+            <div class="stat-card-content">
+              <div class="stat-icon traffic-icon">
+                <el-icon><DataAnalysis /></el-icon>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">{{ formatTrafficNum(trafficStats.totalViews) }}</div>
+                <div class="stat-label">总播放量</div>
+              </div>
+            </div>
+            <div class="stat-footer">
+              <div class="stat-detail">
+                <span>点赞: {{ formatTrafficNum(trafficStats.totalLikes) }}</span>
+                <span>发布: {{ trafficStats.publishCount }}条</span>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
       </el-row>
       
       <!-- 快捷操作区域 -->
@@ -246,6 +266,13 @@ const contentStats = reactive({
   draft: 0
 })
 
+// 流量统计数据（首页概览）
+const trafficStats = reactive({
+  totalViews: 0,
+  totalLikes: 0,
+  publishCount: 0
+})
+
 // 最近任务数据
 const recentTasks = ref([])
 
@@ -263,6 +290,12 @@ const fetchDashboardStats = async () => {
     assignStats(platformStats, data.platformStats)
     assignStats(taskStats, data.taskStats)
     assignStats(contentStats, data.contentStats)
+    // 流量统计
+    if (data.trafficStats) {
+      trafficStats.totalViews = Number(data.trafficStats.total_views || 0)
+      trafficStats.totalLikes = Number(data.trafficStats.total_likes || 0)
+      trafficStats.publishCount = Number(data.trafficStats.publish_count || 0)
+    }
     recentTasks.value = data.recentTasks || []
   } catch (error) {
     console.error('获取首页统计失败:', error)
@@ -296,6 +329,12 @@ const getStatusTagType = (status) => {
 }
 
 // 导航到指定路由
+const formatTrafficNum = (n) => {
+  if (!n) return '0'
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万'
+  return n.toLocaleString()
+}
+
 const navigateTo = (path) => {
   router.push(path)
 }
@@ -424,6 +463,14 @@ const cancelTask = (task) => {
             }
           }
         }
+          
+          &.traffic-icon {
+            background-color: rgba(-color, 0.1);
+            
+            .el-icon {
+              color: -color;
+            }
+          }
         
         .stat-info {
           .stat-value {

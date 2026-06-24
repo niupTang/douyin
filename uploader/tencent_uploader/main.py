@@ -71,7 +71,8 @@ async def get_tencent_cookie(account_file):
 
 
 async def weixin_setup(account_file, handle=False):
-    account_file = get_absolute_path(account_file, "tencent_uploader")
+    if not os.path.isabs(account_file):
+        account_file = get_absolute_path(account_file, "tencent_uploader")
     if not os.path.exists(account_file) or not await cookie_auth(account_file):
         if not handle:
             # Todo alert message

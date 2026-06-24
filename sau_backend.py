@@ -50,6 +50,12 @@ def ensure_publish_records_table():
             account_list TEXT,
             status TEXT NOT NULL,
             error_message TEXT,
+            views INTEGER DEFAULT 0,
+            likes INTEGER DEFAULT 0,
+            comments INTEGER DEFAULT 0,
+            shares INTEGER DEFAULT 0,
+            video_url TEXT DEFAULT NULL,
+            last_refresh_at DATETIME DEFAULT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         ''')
@@ -645,14 +651,16 @@ def parse_douyin_video_analysis(row):
     return item
 
 
-def save_publish_record(platform_type, title, tags, file_list, account_list, status, error_message=None):
+def save_publish_record(platform_type, title, tags, file_list, account_list, status, error_message=None,
+                          views=0, likes=0, comments=0, shares=0, video_url=None):
     ensure_publish_records_table()
     with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
         cursor = conn.cursor()
         cursor.execute('''
         INSERT INTO publish_records
-            (platform_type, title, tags, file_list, account_list, status, error_message)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+            (platform_type, title, tags, file_list, account_list, status, error_message,
+             views, likes, comments, shares, video_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             platform_type,
             title,
@@ -660,7 +668,12 @@ def save_publish_record(platform_type, title, tags, file_list, account_list, sta
             json.dumps(file_list or [], ensure_ascii=False),
             json.dumps(account_list or [], ensure_ascii=False),
             status,
-            error_message
+            error_message,
+            views,
+            likes,
+            comments,
+            shares,
+            video_url
         ))
         conn.commit()
 
@@ -1447,8 +1460,122 @@ def get_publish_records():
                         item[key] = json.loads(item.get(key) or "[]")
                     except Exception:
                         item[key] = []
+                # 确保流量字段为数字
+                for key in ("views", "likes", "comments", "shares"):
+                    try:
+                        item[key] = int(item.get(key) or 0)
+                    except (ValueError, TypeError):
+                        item[key] = 0
                 records.append(item)
         return jsonify({"code": 200, "msg": "success", "data": records}), 200
+    except Exception as e:
+        return jsonify({"code": 500, "msg": str(e), "data": None}), 500
+
+
+
+@app.route('/publish/updateStats', methods=['POST'])
+def update_publish_stats():
+    """手动更新某条发布记录的流量数据"""
+    try:
+        data = request.get_json()
+        record_id = data.get('id')
+        if not record_id:
+            return jsonify({"code": 400, "msg": "缺少记录ID"}), 400
+
+        ensure_publish_records_table()
+        with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
+            cursor = conn.cursor()
+            fields = {}
+            for key in ('views', 'likes', 'comments', 'shares'):
+                val = data.get(key)
+                if val is not None:
+                    fields[key] = int(val)
+            if not fields:
+                return jsonify({"code": 400, "msg": "没有需要更新的字段"}), 400
+
+            fields['last_refresh_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            set_clause = ", ".join(f"{k} = ?" for k in fields)
+            values = list(fields.values()) + [record_id]
+            cursor.execute(f"UPDATE publish_records SET {set_clause} WHERE id = ?", values)
+            conn.commit()
+
+        return jsonify({"code": 200, "msg": "更新成功", "data": fields}), 200
+    except Exception as e:
+        return jsonify({"code": 500, "msg": str(e), "data": None}), 500
+
+
+@app.route('/publish/batchUpdateStats', methods=['POST'])
+def batch_update_publish_stats():
+    """批量更新多条记录的流量数据（来自前端批量操作或爬取结果）"""
+    try:
+        data = request.get_json()
+        records = data.get('records', [])
+        if not records:
+            return jsonify({"code": 400, "msg": "没有记录"}), 400
+
+        ensure_publish_records_table()
+        with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
+            cursor = conn.cursor()
+            now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            updated = 0
+            for rec in records:
+                record_id = rec.get('id')
+                if not record_id:
+                    continue
+                fields = {}
+                for key in ('views', 'likes', 'comments', 'shares'):
+                    val = rec.get(key)
+                    if val is not None:
+                        fields[key] = int(val)
+                if fields:
+                    fields['last_refresh_at'] = now
+                    set_clause = ", ".join(f"{k} = ?" for k in fields)
+                    values = list(fields.values()) + [record_id]
+                    cursor.execute(f"UPDATE publish_records SET {set_clause} WHERE id = ?", values)
+                    updated += 1
+            conn.commit()
+
+        return jsonify({"code": 200, "msg": f"更新成功 {updated} 条记录", "data": {"updated": updated}}), 200
+    except Exception as e:
+        return jsonify({"code": 500, "msg": str(e), "data": None}), 500
+
+
+@app.route('/account/updateFollower', methods=['POST'])
+def update_account_follower():
+    """更新账号粉丝数"""
+    try:
+        data = request.get_json()
+        account_id = data.get('id')
+        follower_count = data.get('follower_count')
+        if not account_id or follower_count is None:
+            return jsonify({"code": 400, "msg": "缺少账号ID或粉丝数"}), 400
+
+        with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE user_info SET follower_count = ? WHERE id = ?",
+                          (int(follower_count), account_id))
+            conn.commit()
+
+        return jsonify({"code": 200, "msg": "更新成功"}), 200
+    except Exception as e:
+        return jsonify({"code": 500, "msg": str(e), "data": None}), 500
+
+
+@app.route('/account/followers', methods=['GET'])
+def get_account_followers():
+    """获取所有账号的粉丝数"""
+    try:
+        with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, userName, type, follower_count, status FROM user_info ORDER BY id")
+            accounts = []
+            for row in cursor.fetchall():
+                d = dict(row)
+                d['follower_count'] = d.get('follower_count') or 0
+                accounts.append(d)
+
+        return jsonify({"code": 200, "msg": "success", "data": accounts}), 200
     except Exception as e:
         return jsonify({"code": 500, "msg": str(e), "data": None}), 500
 
@@ -1472,6 +1599,11 @@ def get_dashboard_stats():
             account_total = scalar(cursor, "SELECT COUNT(*) FROM user_info")
             account_normal = scalar(cursor, "SELECT COUNT(*) FROM user_info WHERE status = 1")
             account_abnormal = account_total - account_normal
+
+            # 流量统计
+            total_views = scalar(cursor, "SELECT COALESCE(SUM(views), 0) FROM publish_records WHERE status = 'success'")
+            total_likes = scalar(cursor, "SELECT COALESCE(SUM(likes), 0) FROM publish_records WHERE status = 'success'")
+            publish_success_count = scalar(cursor, "SELECT COUNT(*) FROM publish_records WHERE status = 'success'")
 
             cursor.execute("SELECT type, COUNT(*) AS count FROM user_info GROUP BY type")
             platform_counts = {str(row["type"]): row["count"] for row in cursor.fetchall()}
@@ -1504,6 +1636,9 @@ def get_dashboard_stats():
             content_total = len(material_files | published_files)
             published_content = len(published_files)
             draft_content = len(material_files - published_files)
+
+            # 总流量合计（用于首页统计卡片）
+            publish_success_count = scalar(cursor, "SELECT COUNT(*) FROM publish_records WHERE status = 'success'")
 
             platform_names = {
                 1: "小红书",
@@ -1573,6 +1708,11 @@ def get_dashboard_stats():
                         "total": content_total,
                         "published": published_content,
                         "draft": draft_content,
+                    },
+                    "trafficStats": {
+                        "total_views": total_views,
+                        "total_likes": total_likes,
+                        "publish_count": publish_success_count,
                     },
                     "recentTasks": recent_tasks,
                 },

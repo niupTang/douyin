@@ -1,0 +1,16 @@
+{
+  "name": "sunbird-douyin-project-video",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "render": "remotion render src/index.jsx ProjectVideo out/sunbird-douyin-project.mp4 --codec=h264 --audio-codec=aac",
+    "still": "remotion still src/index.jsx ProjectVideo out/preview.png --frame=90"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.478",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.367"
+  }
+}
