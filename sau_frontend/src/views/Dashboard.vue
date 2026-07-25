@@ -1,579 +1,474 @@
 <template>
-  <div class="dashboard">
-    <div class="page-header">
-      <h1>自媒体自动化运营系统</h1>
-    </div>
-    
-    <div class="dashboard-content">
-      <el-row :gutter="20">
-        <!-- 账号统计卡片 -->
-        <el-col :span="6">
-          <el-card class="stat-card">
-            <div class="stat-card-content">
-              <div class="stat-icon">
-                <el-icon><User /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ accountStats.total }}</div>
-                <div class="stat-label">账号总数</div>
-              </div>
-            </div>
-            <div class="stat-footer">
-              <div class="stat-detail">
-                <span>正常: {{ accountStats.normal }}</span>
-                <span>异常: {{ accountStats.abnormal }}</span>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        
-        <!-- 平台统计卡片 -->
-        <el-col :span="6">
-          <el-card class="stat-card">
-            <div class="stat-card-content">
-              <div class="stat-icon platform-icon">
-                <el-icon><Platform /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ platformStats.total }}</div>
-                <div class="stat-label">平台总数</div>
-              </div>
-            </div>
-            <div class="stat-footer">
-              <div class="stat-detail">
-                <el-tooltip content="快手账号" placement="top">
-                  <el-tag size="small" type="success">{{ platformStats.kuaishou }}</el-tag>
-                </el-tooltip>
-                <el-tooltip content="抖音账号" placement="top">
-                  <el-tag size="small" type="danger">{{ platformStats.douyin }}</el-tag>
-                </el-tooltip>
-                <el-tooltip content="视频号账号" placement="top">
-                  <el-tag size="small" type="warning">{{ platformStats.channels }}</el-tag>
-                </el-tooltip>
-                <el-tooltip content="小红书账号" placement="top">
-                  <el-tag size="small" type="info">{{ platformStats.xiaohongshu }}</el-tag>
-                </el-tooltip>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        
-        <!-- 任务统计卡片 -->
-        <el-col :span="6">
-          <el-card class="stat-card">
-            <div class="stat-card-content">
-              <div class="stat-icon task-icon">
-                <el-icon><List /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ taskStats.total }}</div>
-                <div class="stat-label">任务总数</div>
-              </div>
-            </div>
-            <div class="stat-footer">
-              <div class="stat-detail">
-                <span>完成: {{ taskStats.completed }}</span>
-                <span>进行中: {{ taskStats.inProgress }}</span>
-                <span>失败: {{ taskStats.failed }}</span>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        
-        <!-- 内容统计卡片 -->
-        <el-col :span="6">
-          <el-card class="stat-card">
-            <div class="stat-card-content">
-              <div class="stat-icon content-icon">
-                <el-icon><Document /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ contentStats.total }}</div>
-                <div class="stat-label">内容总数</div>
-              </div>
-            </div>
-            <div class="stat-footer">
-              <div class="stat-detail">
-                <span>已发布: {{ contentStats.published }}</span>
-                <span>草稿: {{ contentStats.draft }}</span>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-        <!-- 流量统计卡片 -->
-        <el-col :span="6">
-          <el-card class="stat-card">
-            <div class="stat-card-content">
-              <div class="stat-icon traffic-icon">
-                <el-icon><DataAnalysis /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">{{ formatTrafficNum(trafficStats.totalViews) }}</div>
-                <div class="stat-label">总播放量</div>
-              </div>
-            </div>
-            <div class="stat-footer">
-              <div class="stat-detail">
-                <span>点赞: {{ formatTrafficNum(trafficStats.totalLikes) }}</span>
-                <span>发布: {{ trafficStats.publishCount }}条</span>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-      
-      <!-- 快捷操作区域 -->
-      <div class="quick-actions">
-        <h2>快捷操作</h2>
-        <el-row :gutter="20">
-          <el-col :span="6">
-            <el-card class="action-card" @click="navigateTo('/account-management')">
-              <div class="action-icon">
-                <el-icon><UserFilled /></el-icon>
-              </div>
-              <div class="action-title">账号管理</div>
-              <div class="action-desc">管理所有平台账号</div>
-            </el-card>
-          </el-col>
-          <el-col :span="6">
-            <el-card class="action-card">
-              <div class="action-icon">
-                <el-icon><Upload /></el-icon>
-              </div>
-              <div class="action-title">内容上传</div>
-              <div class="action-desc">上传视频和图文内容</div>
-            </el-card>
-          </el-col>
-          <el-col :span="6">
-            <el-card class="action-card">
-              <div class="action-icon">
-                <el-icon><Timer /></el-icon>
-              </div>
-              <div class="action-title">定时发布</div>
-              <div class="action-desc">设置内容发布时间</div>
-            </el-card>
-          </el-col>
-          <el-col :span="6">
-            <el-card class="action-card">
-              <div class="action-icon">
-                <el-icon><DataAnalysis /></el-icon>
-              </div>
-              <div class="action-title">数据分析</div>
-              <div class="action-desc">查看内容数据分析</div>
-            </el-card>
-          </el-col>
-        </el-row>
-      </div>
-      
-      <!-- 最近任务列表 -->
-      <div class="recent-tasks">
-        <div class="section-header">
-          <h2>最近任务</h2>
-          <el-button text>查看全部</el-button>
+  <div class="growth-console">
+    <header class="console-header">
+      <div>
+        <div class="project-line">
+          <h1>内容增长平台</h1>
+          <span class="project-id">SAU</span>
+          <span class="project-region">Douyin</span>
         </div>
-        
-        <el-table :data="recentTasks" style="width: 100%">
-          <el-table-column prop="title" label="任务名称" width="250" />
-          <el-table-column prop="platform" label="平台" width="120">
-            <template #default="scope">
-              <el-tag
-                :type="getPlatformTagType(scope.row.platform)"
-                effect="plain"
-              >
-                {{ scope.row.platform }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="account" label="账号" width="150" />
-          <el-table-column prop="createTime" label="创建时间" width="180" />
-          <el-table-column prop="status" label="状态" width="120">
-            <template #default="scope">
-              <el-tag
-                :type="getStatusTagType(scope.row.status)"
-                effect="plain"
-              >
-                {{ scope.row.status }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作">
-            <template #default="scope">
-              <el-button size="small" @click="viewTaskDetail(scope.row)">查看</el-button>
-              <el-button 
-                size="small" 
-                type="primary" 
-                v-if="scope.row.status === '待执行'"
-                @click="executeTask(scope.row)"
-              >
-                执行
-              </el-button>
-              <el-button 
-                size="small" 
-                type="danger" 
-                v-if="scope.row.status !== '已完成' && scope.row.status !== '已失败'"
-                @click="cancelTask(scope.row)"
-              >
-                取消
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <p>复盘内容、对标账号和爆款拆解集中管理。</p>
       </div>
-    </div>
+      <el-button class="primary-action" :icon="Plus" @click="navigateTo('/benchmark-management')">
+        添加对标
+      </el-button>
+    </header>
+
+    <section class="large-metrics">
+      <article class="metric-card large">
+        <div class="metric-top">
+          <div>
+            <strong>{{ formatNumber(stats.reviewedWorks) }}</strong>
+            <span>条</span>
+          </div>
+          <button class="period-button">30d <el-icon><ArrowDown /></el-icon></button>
+        </div>
+        <p>复盘内容</p>
+        <div class="empty-chart">
+          <el-icon><Histogram /></el-icon>
+          <span>{{ stats.reviewedWorks ? '等待更多样本形成趋势' : 'No data to show' }}</span>
+        </div>
+      </article>
+
+      <article class="metric-card large">
+        <div class="metric-top">
+          <div>
+            <strong>{{ formatNumber(stats.viralAnalyses) }}</strong>
+          </div>
+          <button class="period-button">30d <el-icon><ArrowDown /></el-icon></button>
+        </div>
+        <p>爆款拆解数</p>
+        <div class="empty-chart">
+          <el-icon><Histogram /></el-icon>
+          <span>{{ stats.viralAnalyses ? '本周拆解持续增加' : 'No data to show' }}</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="small-metrics">
+      <article v-for="item in metricCards" :key="item.label" class="metric-card small" @click="navigateTo(item.path)">
+        <div class="metric-label">
+          <el-icon><component :is="item.icon" /></el-icon>
+          <span>{{ item.kicker }}</span>
+        </div>
+        <strong>{{ item.value }}</strong>
+        <p>{{ item.label }}</p>
+      </article>
+    </section>
+
+    <section class="workbench">
+      <div class="section-heading">
+        <h2>工作台</h2>
+        <div class="tabs">
+          <button class="active">增长动作</button>
+          <button>对标样本</button>
+          <button>复盘队列</button>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <el-button class="primary-action" :icon="Plus" @click="navigateTo('/own-content-review')">
+          新建复盘
+        </el-button>
+      </div>
+
+      <div class="action-table">
+        <div class="table-row table-head">
+          <span>动作</span>
+          <span>类型</span>
+          <span>状态</span>
+        </div>
+        <button
+          v-for="action in actions"
+          :key="action.name"
+          class="table-row"
+          @click="navigateTo(action.path)"
+        >
+          <span>{{ action.name }}</span>
+          <span>{{ action.type }}</span>
+          <span>{{ action.status }}</span>
+        </button>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { computed, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { 
-  User, UserFilled, Platform, List, Document, 
-  Upload, Timer, DataAnalysis 
+import {
+  Aim,
+  ArrowDown,
+  DataAnalysis,
+  DocumentChecked,
+  Histogram,
+  MagicStick,
+  Plus
 } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { dashboardApi } from '@/api/dashboard'
+import { benchmarkApi } from '@/api/benchmark'
+import { ownContentApi } from '@/api/ownContent'
 
 const router = useRouter()
 
-// 账号统计数据
-const accountStats = reactive({
-  total: 0,
-  normal: 0,
-  abnormal: 0
+const stats = reactive({
+  reviewedWorks: 0,
+  benchmarkAccounts: 0,
+  viralAnalyses: 0,
+  viralWorks: 0
 })
 
-// 平台统计数据
-const platformStats = reactive({
-  total: 0,
-  kuaishou: 0,
-  douyin: 0,
-  channels: 0,
-  xiaohongshu: 0
-})
-
-// 任务统计数据
-const taskStats = reactive({
-  total: 0,
-  completed: 0,
-  inProgress: 0,
-  failed: 0
-})
-
-// 内容统计数据
-const contentStats = reactive({
-  total: 0,
-  published: 0,
-  draft: 0
-})
-
-// 流量统计数据（首页概览）
-const trafficStats = reactive({
-  totalViews: 0,
-  totalLikes: 0,
-  publishCount: 0
-})
-
-// 最近任务数据
-const recentTasks = ref([])
-
-const assignStats = (target, source = {}) => {
-  Object.keys(target).forEach((key) => {
-    target[key] = Number(source[key] || 0)
-  })
-}
-
-const fetchDashboardStats = async () => {
-  try {
-    const res = await dashboardApi.getStats()
-    const data = res.data || {}
-    assignStats(accountStats, data.accountStats)
-    assignStats(platformStats, data.platformStats)
-    assignStats(taskStats, data.taskStats)
-    assignStats(contentStats, data.contentStats)
-    // 流量统计
-    if (data.trafficStats) {
-      trafficStats.totalViews = Number(data.trafficStats.total_views || 0)
-      trafficStats.totalLikes = Number(data.trafficStats.total_likes || 0)
-      trafficStats.publishCount = Number(data.trafficStats.publish_count || 0)
-    }
-    recentTasks.value = data.recentTasks || []
-  } catch (error) {
-    console.error('获取首页统计失败:', error)
+const metricCards = computed(() => [
+  {
+    kicker: 'REVIEW',
+    label: '复盘内容',
+    value: formatNumber(stats.reviewedWorks),
+    path: '/own-content-review',
+    icon: DocumentChecked
+  },
+  {
+    kicker: 'BENCHMARK',
+    label: '对标账号',
+    value: formatNumber(stats.benchmarkAccounts),
+    path: '/benchmark-management',
+    icon: Aim
+  },
+  {
+    kicker: 'ANALYSIS',
+    label: '爆款拆解数',
+    value: formatNumber(stats.viralAnalyses),
+    path: '/idea-radar',
+    icon: DataAnalysis
+  },
+  {
+    kicker: 'VIRAL',
+    label: '爆款数',
+    value: formatNumber(stats.viralWorks),
+    path: '/idea-radar',
+    icon: MagicStick
   }
-}
+])
 
-onMounted(() => {
-  fetchDashboardStats()
-})
+const actions = [
+  { name: '导入作品数据', type: '复盘内容', status: '可执行', path: '/own-content-review' },
+  { name: '同步对标账号', type: '样本管理', status: '可执行', path: '/benchmark-management' },
+  { name: '拆解高赞作品', type: '爆款拆解', status: '可执行', path: '/idea-radar' }
+]
 
-// 根据平台获取标签类型
-const getPlatformTagType = (platform) => {
-  const typeMap = {
-    '快手': 'success',
-    '抖音': 'danger',
-    '视频号': 'warning',
-    '小红书': 'info'
-  }
-  return typeMap[platform] || 'info'
-}
-
-// 根据状态获取标签类型
-const getStatusTagType = (status) => {
-  const typeMap = {
-    '已完成': 'success',
-    '进行中': 'warning',
-    '待执行': 'info',
-    '已失败': 'danger'
-  }
-  return typeMap[status] || 'info'
-}
-
-// 导航到指定路由
-const formatTrafficNum = (n) => {
-  if (!n) return '0'
-  if (n >= 10000) return (n / 10000).toFixed(1) + '万'
+const formatNumber = (value) => {
+  const n = Number(value || 0)
+  if (n >= 10000) return `${(n / 10000).toFixed(1)}万`
   return n.toLocaleString()
+}
+
+const fetchDashboardData = async () => {
+  const [worksResult, accountsResult, videosResult] = await Promise.allSettled([
+    ownContentApi.getDouyinWorks(500),
+    benchmarkApi.getDouyinAccounts(),
+    benchmarkApi.getIdeaRadarVideos(500)
+  ])
+
+  const works = worksResult.status === 'fulfilled' ? worksResult.value.data || [] : []
+  const accounts = accountsResult.status === 'fulfilled' ? accountsResult.value.data || [] : []
+  const videos = videosResult.status === 'fulfilled' ? videosResult.value.data || [] : []
+
+  stats.reviewedWorks = works.length
+  stats.benchmarkAccounts = accounts.length
+  stats.viralAnalyses = videos.length
+  stats.viralWorks = videos.filter((video) => Number(video.like_score || video.like_count || 0) >= 10000).length
 }
 
 const navigateTo = (path) => {
   router.push(path)
 }
 
-// 查看任务详情
-const viewTaskDetail = (task) => {
-  ElMessage.info(`查看任务: ${task.title}`)
-  // 实际应用中应该跳转到任务详情页面
-}
-
-// 执行任务
-const executeTask = (task) => {
-  ElMessageBox.confirm(
-    `确定要执行任务 ${task.title} 吗？`,
-    '提示',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'info',
-    }
-  )
-    .then(() => {
-      // 更新任务状态
-      const index = recentTasks.value.findIndex(t => t.id === task.id)
-      if (index !== -1) {
-        recentTasks.value[index].status = '进行中'
-      }
-      ElMessage({
-        type: 'success',
-        message: '任务已开始执行',
-      })
-    })
-    .catch(() => {
-      // 取消执行
-    })
-}
-
-// 取消任务
-const cancelTask = (task) => {
-  ElMessageBox.confirm(
-    `确定要取消任务 ${task.title} 吗？`,
-    '警告',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  )
-    .then(() => {
-      // 更新任务状态
-      const index = recentTasks.value.findIndex(t => t.id === task.id)
-      if (index !== -1) {
-        recentTasks.value[index].status = '已取消'
-      }
-      ElMessage({
-        type: 'success',
-        message: '任务已取消',
-      })
-    })
-    .catch(() => {
-      // 取消操作
-    })
-}
+onMounted(fetchDashboardData)
 </script>
 
-<style lang="scss" scoped>
-@use '@/styles/variables.scss' as *;
+<style lang="scss">
+.growth-console {
+  max-width: 1160px;
+  margin: 0 auto;
+  color: #25272c;
+}
 
-.dashboard {
-  .page-header {
-    margin-bottom: 20px;
-    
-    h1 {
-      font-size: 24px;
-      color: $text-primary;
-      margin: 0;
+.console-header {
+  min-height: 104px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 4px 0 28px;
+
+  p {
+    margin-top: 8px;
+    color: #737780;
+    font-size: 14px;
+  }
+}
+
+.project-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  h1 {
+    margin: 0;
+    color: #2c2d31;
+    font-size: 32px;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+}
+
+.project-id {
+  padding: 4px 9px;
+  border-radius: 7px;
+  background: #f1f1f3;
+  color: #565a62;
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.project-region {
+  color: #6f737c;
+  font-size: 14px;
+}
+
+.primary-action {
+  border: 0;
+  border-radius: 8px;
+  background: #ff3b7f;
+  color: #ffffff;
+  font-weight: 600;
+
+  &:hover,
+  &:focus {
+    background: #ef2f72;
+    color: #ffffff;
+  }
+}
+
+.large-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.small-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 22px;
+  margin-top: 22px;
+}
+
+.metric-card {
+  border: 1px solid #e7e7ea;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.02);
+}
+
+.metric-card.large {
+  min-height: 214px;
+  padding: 18px;
+}
+
+.metric-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  strong {
+    color: #2b2d31;
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  span {
+    margin-left: 4px;
+    color: #4f535a;
+    font-size: 12px;
+  }
+}
+
+.period-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #626771;
+  font-size: 14px;
+}
+
+.metric-card.large > p {
+  margin: 8px 0 18px;
+  color: #6f737c;
+  font-size: 15px;
+}
+
+.empty-chart {
+  height: 106px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed #e8e8ec;
+  border-radius: 12px;
+  color: #747880;
+  font-weight: 600;
+
+  .el-icon {
+    margin-bottom: -18px;
+    color: #73777f;
+    font-size: 20px;
+  }
+}
+
+.metric-card.small {
+  min-height: 158px;
+  padding: 20px 18px;
+  cursor: pointer;
+  transition: border-color 0.16s, transform 0.16s;
+
+  &:hover {
+    border-color: #d6d7dc;
+    transform: translateY(-1px);
+  }
+
+  strong {
+    display: block;
+    margin-top: 48px;
+    color: #2b2d31;
+    font-size: 27px;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  p {
+    margin-top: 7px;
+    color: #636770;
+    font-size: 15px;
+  }
+}
+
+.metric-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #b7b8bd;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+
+  .el-icon {
+    font-size: 15px;
+  }
+}
+
+.workbench {
+  margin-top: 34px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+
+  h2 {
+    margin: 0;
+    color: #2c2d31;
+    font-size: 26px;
+    font-weight: 500;
+  }
+}
+
+.tabs {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 9px;
+  background: #f1f1f4;
+
+  button {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 7px;
+    color: #626771;
+    font-size: 14px;
+
+    &.active {
+      background: #ffffff;
+      color: #2d3035;
+      box-shadow: 0 1px 4px rgba(16, 24, 40, 0.08);
     }
   }
-  
-  .dashboard-content {
-    .stat-card {
-      height: 140px;
-      margin-bottom: 20px;
-      
-      .stat-card-content {
-        display: flex;
-        align-items: center;
-        margin-bottom: 15px;
-        
-        .stat-icon {
-          width: 60px;
-          height: 60px;
-          border-radius: 50%;
-          background-color: rgba($primary-color, 0.1);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          margin-right: 15px;
-          
-          .el-icon {
-            font-size: 30px;
-            color: $primary-color;
-          }
-          
-          &.platform-icon {
-            background-color: rgba($success-color, 0.1);
-            
-            .el-icon {
-              color: $success-color;
-            }
-          }
-          
-          &.task-icon {
-            background-color: rgba($warning-color, 0.1);
-            
-            .el-icon {
-              color: $warning-color;
-            }
-          }
-          
-          &.content-icon {
-            background-color: rgba($info-color, 0.1);
-            
-            .el-icon {
-              color: $info-color;
-            }
-          }
-        }
-          
-          &.traffic-icon {
-            background-color: rgba(-color, 0.1);
-            
-            .el-icon {
-              color: -color;
-            }
-          }
-        
-        .stat-info {
-          .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: $text-primary;
-            line-height: 1.2;
-          }
-          
-          .stat-label {
-            font-size: 14px;
-            color: $text-secondary;
-          }
-        }
-      }
-      
-      .stat-footer {
-        border-top: 1px solid $border-lighter;
-        padding-top: 10px;
-        
-        .stat-detail {
-          display: flex;
-          justify-content: space-between;
-          color: $text-secondary;
-          font-size: 13px;
-          
-          .el-tag {
-            margin-right: 5px;
-          }
-        }
-      }
-    }
-    
-    .quick-actions {
-      margin: 20px 0 30px;
-      
-      h2 {
-        font-size: 18px;
-        margin-bottom: 15px;
-        color: $text-primary;
-      }
-      
-      .action-card {
-        height: 160px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        transition: all 0.3s;
-        
-        &:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-        
-        .action-icon {
-          width: 50px;
-          height: 50px;
-          border-radius: 50%;
-          background-color: rgba($primary-color, 0.1);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          margin-bottom: 15px;
-          
-          .el-icon {
-            font-size: 24px;
-            color: $primary-color;
-          }
-        }
-        
-        .action-title {
-          font-size: 16px;
-          font-weight: bold;
-          color: $text-primary;
-          margin-bottom: 5px;
-        }
-        
-        .action-desc {
-          font-size: 13px;
-          color: $text-secondary;
-          text-align: center;
-        }
-      }
-    }
-    
-    .recent-tasks {
-      margin-top: 30px;
-      
-      .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-        
-        h2 {
-          font-size: 18px;
-          color: $text-primary;
-          margin: 0;
-        }
-      }
-    }
+}
+
+.action-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+
+.action-table {
+  overflow: hidden;
+  border: 1px solid #e7e7ea;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.table-row {
+  width: 100%;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  align-items: center;
+  padding: 0 14px;
+  border-bottom: 1px solid #ececef;
+  color: #686c75;
+  text-align: left;
+  font-size: 14px;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.table-head {
+  color: #646872;
+  background: #fbfbfc;
+  font-weight: 500;
+}
+
+button.table-row:hover {
+  background: #fafafa;
+}
+
+@media (max-width: 980px) {
+  .large-metrics,
+  .small-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .console-header,
+  .section-heading {
+    display: block;
+  }
+
+  .primary-action {
+    margin-top: 16px;
+  }
+
+  .large-metrics,
+  .small-metrics,
+  .table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .table-row {
+    gap: 6px;
+    padding: 12px 14px;
   }
 }
 </style>
