@@ -14,7 +14,7 @@ koubo_store.initialize()
 app.register_blueprint(
     create_koubo_blueprint(
         koubo_store,
-        Path(BASE_DIR / "koubo_data"),
+        Path(os.environ.get("KOUBO_STORAGE_ROOT") or BASE_DIR / "koubo_data"),
         os.environ.get("KOUBO_ADMIN_TOKEN"),
     )
 )
