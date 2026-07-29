@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 from conf import BASE_DIR
-from koubo_integration import KouboStore, create_koubo_blueprint
+from koubo_integration import KouboStore, create_koubo_blueprint, register_realtime
 from sau_backend import app
 
 
@@ -15,6 +15,7 @@ app.register_blueprint(
         os.environ.get("KOUBO_ADMIN_TOKEN"),
     )
 )
+register_realtime(app, koubo_store)
 
 
 if __name__ == "__main__":

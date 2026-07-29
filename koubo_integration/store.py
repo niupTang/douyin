@@ -54,6 +54,7 @@ class KouboStore:
                 );
                 CREATE TABLE IF NOT EXISTS koubo_binding_codes (
                     code_hash TEXT PRIMARY KEY,
+                    device_type TEXT NOT NULL DEFAULT 'mobile',
                     expires_at TEXT NOT NULL,
                     used_at TEXT
                 );
@@ -94,6 +95,15 @@ class KouboStore:
                 );
                 """
             )
+            binding_columns = {
+                row[1] for row in connection.execute(
+                    "PRAGMA table_info(koubo_binding_codes)"
+                ).fetchall()
+            }
+            if "device_type" not in binding_columns:
+                connection.execute(
+                    "ALTER TABLE koubo_binding_codes ADD COLUMN device_type TEXT NOT NULL DEFAULT 'mobile'"
+                )
 
     @staticmethod
     def token_hash(token):
@@ -156,15 +166,17 @@ class KouboStore:
             )
         return self.get_project(project_id) if result.rowcount else None
 
-    def create_binding_code(self, lifetime_minutes=10):
+    def create_binding_code(self, lifetime_minutes=10, device_type="mobile"):
+        if device_type not in {"mobile", "worker"}:
+            raise ValueError("invalid device type")
         code = secrets.token_urlsafe(24)
         expires_at = (datetime.now(timezone.utc) + timedelta(minutes=lifetime_minutes)).isoformat()
         with self.connect() as connection:
             connection.execute(
-                "INSERT INTO koubo_binding_codes (code_hash, expires_at) VALUES (?, ?)",
-                (self.token_hash(code), expires_at),
+                "INSERT INTO koubo_binding_codes (code_hash, device_type, expires_at) VALUES (?, ?, ?)",
+                (self.token_hash(code), device_type, expires_at),
             )
-        return {"code": code, "expires_at": expires_at}
+        return {"code": code, "type": device_type, "expires_at": expires_at}
 
     def claim_binding_code(self, code, name, device_type="mobile"):
         now = datetime.now(timezone.utc)
@@ -173,7 +185,12 @@ class KouboStore:
             row = connection.execute(
                 "SELECT * FROM koubo_binding_codes WHERE code_hash = ?", (code_hash,)
             ).fetchone()
-            if not row or row["used_at"] or datetime.fromisoformat(row["expires_at"]) <= now:
+            if (
+                not row
+                or row["used_at"]
+                or row["device_type"] != device_type
+                or datetime.fromisoformat(row["expires_at"]) <= now
+            ):
                 return None
             token = secrets.token_urlsafe(48)
             device_id = str(uuid.uuid4())
@@ -188,6 +205,22 @@ class KouboStore:
                 (utc_now(), code_hash),
             )
         return {"device_id": device_id, "token": token, "type": device_type}
+
+    def list_devices(self):
+        with self.connect() as connection:
+            rows = connection.execute(
+                """SELECT id, name, type, last_seen_at, revoked_at, created_at
+                FROM koubo_devices ORDER BY created_at DESC"""
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def revoke_device(self, device_id):
+        with self.connect() as connection:
+            result = connection.execute(
+                "UPDATE koubo_devices SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
+                (utc_now(), device_id),
+            )
+        return result.rowcount > 0
 
     def authenticate(self, token, device_type=None):
         if not token:

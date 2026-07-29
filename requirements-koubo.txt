@@ -1,0 +1,3 @@
+Flask-Sock==0.7.0
+Pillow>=10.0
+gunicorn>=22.0

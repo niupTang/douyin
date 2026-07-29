@@ -25,6 +25,14 @@
           <small>V{{ item.script_version }} · {{ statusLabel[item.status] || item.status }}</small>
         </button>
         <el-empty v-if="!projects.length" description="还没有口播项目" :image-size="72" />
+        <div class="device-box">
+          <div class="section-title"><strong>设备</strong><span>{{ devices.length }}</span></div>
+          <div v-for="device in devices" :key="device.id" class="device-row">
+            <div><strong>{{ device.name }}</strong><small>{{ device.type === 'worker' ? '剪辑工作器' : '手机' }}</small></div>
+            <el-button text type="danger" @click="revokeDevice(device)">撤销</el-button>
+          </div>
+          <el-button size="small" @click="generateWorkerCode">绑定 Windows 工作器</el-button>
+        </div>
       </aside>
 
       <main class="editor">
@@ -90,6 +98,7 @@ import { useRouter } from 'vue-router'
 import { kouboApi } from '@/api/koubo'
 
 const projects = ref([])
+const devices = ref([])
 const selected = ref(null)
 const script = ref('')
 const saving = ref(false)
@@ -120,6 +129,11 @@ async function loadProjects() {
   } else if (projects.value.length) {
     selectProject(projects.value[0])
   }
+}
+
+async function loadDevices() {
+  const response = await kouboApi.listDevices()
+  devices.value = (response.data || []).filter((item) => !item.revoked_at)
 }
 
 async function setAdminToken() {
@@ -167,8 +181,21 @@ async function syncScript() {
 }
 
 async function generateBindingCode() {
-  const response = await kouboApi.createBindingCode()
+  const response = await kouboApi.createBindingCode('mobile')
   bindingCode.value = response.data.code
+}
+
+async function generateWorkerCode() {
+  const response = await kouboApi.createBindingCode('worker')
+  await ElMessageBox.alert(response.data.code, 'Windows 工作器一次性绑定码', {
+    confirmButtonText: '我已复制'
+  })
+}
+
+async function revokeDevice(device) {
+  await kouboApi.revokeDevice(device.id)
+  ElMessage.success(`${device.name} 已撤销`)
+  await loadDevices()
 }
 
 async function submitEdit() {
@@ -204,7 +231,9 @@ async function sendToPublish() {
   }
 }
 
-onMounted(loadProjects)
+onMounted(async () => {
+  await Promise.all([loadProjects(), loadDevices()])
+})
 </script>
 
 <style scoped lang="scss">
@@ -221,6 +250,10 @@ onMounted(loadProjects)
 .project-list button { display:grid; width:100%; gap:6px; margin-top:6px; border:0; border-radius:12px; padding:14px; text-align:left; background:#f5f7fa; color:#253041; }
 .project-list button.active { color:#fff; background:#1b1f27; }
 .project-list small { color:#8a93a2; }
+.device-box { margin-top:24px; padding-top:16px; border-top:1px solid #e8ebef; }
+.device-row { display:flex; align-items:center; justify-content:space-between; padding:10px 6px; }
+.device-row div { display:grid; gap:3px; }
+.device-row strong { font-size:13px; }
 .editor { padding:28px; }
 .editor-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; }
 .editor-head span,.script-label { color:#8a93a2; font-size:12px; }

@@ -65,7 +65,7 @@ def test_worker_claims_each_job_once(tmp_path):
     )
     assert job.status_code == 201
 
-    binding = store.create_binding_code()
+    binding = store.create_binding_code(device_type="worker")
     worker = store.claim_binding_code(binding["code"], "Windows", "worker")
     headers = {"Authorization": f"Bearer {worker['token']}"}
     first = client.post("/api/koubo/worker/claim", headers=headers)
@@ -120,7 +120,7 @@ def test_mobile_resumes_chunked_upload_and_worker_returns_artifact(tmp_path):
         f"/api/koubo/projects/{project['id']}/edit-jobs",
         json={"template": "knowledge"},
     )
-    worker_binding = store.create_binding_code()
+    worker_binding = store.create_binding_code(device_type="worker")
     worker = store.claim_binding_code(worker_binding["code"], "Windows", "worker")
     worker_headers = {"Authorization": f"Bearer {worker['token']}"}
     job = client.post("/api/koubo/worker/claim", headers=worker_headers).get_json()["data"]
@@ -190,3 +190,23 @@ def test_admin_token_protects_control_plane(tmp_path):
         "/api/koubo/projects", headers={"Authorization": "Bearer secret"}
     )
     assert authorized.status_code == 200
+
+
+def test_binding_code_locks_device_type_and_admin_can_revoke(tmp_path):
+    client, store = make_client(tmp_path)
+    binding = client.post(
+        "/api/koubo/devices/binding-code", json={"type": "worker"}
+    ).get_json()["data"]
+    wrong_type = client.post(
+        "/api/koubo/devices/claim",
+        json={"code": binding["code"], "name": "iPhone", "type": "mobile"},
+    )
+    assert wrong_type.status_code == 400
+    worker = client.post(
+        "/api/koubo/devices/claim",
+        json={"code": binding["code"], "name": "Windows", "type": "worker"},
+    ).get_json()["data"]
+    devices = client.get("/api/koubo/devices").get_json()["data"]
+    assert devices[0]["type"] == "worker"
+    assert client.delete(f"/api/koubo/devices/{worker['device_id']}").status_code == 200
+    assert store.authenticate(worker["token"], "worker") is None

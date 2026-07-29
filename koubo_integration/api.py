@@ -82,7 +82,23 @@ def create_koubo_blueprint(store, storage_root=None, admin_token=None):
     @blueprint.post("/devices/binding-code")
     @admin_required
     def binding_code():
-        return response(store.create_binding_code(), status=201)
+        payload = request.get_json(silent=True) or {}
+        device_type = payload.get("type", "mobile")
+        if device_type not in {"mobile", "worker"}:
+            return response(message="设备类型无效", status=400)
+        return response(store.create_binding_code(device_type=device_type), status=201)
+
+    @blueprint.get("/devices")
+    @admin_required
+    def list_devices():
+        return response(store.list_devices())
+
+    @blueprint.delete("/devices/<device_id>")
+    @admin_required
+    def revoke_device(device_id):
+        if not store.revoke_device(device_id):
+            return response(message="设备不存在或已撤销", status=404)
+        return response({"id": device_id, "revoked": True})
 
     @blueprint.post("/devices/claim")
     def claim_device():

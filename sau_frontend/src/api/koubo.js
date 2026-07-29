@@ -10,8 +10,14 @@ export const kouboApi = {
   updateScript(projectId, script) {
     return http.put(`/api/koubo/projects/${projectId}/script`, { script })
   },
-  createBindingCode() {
-    return http.post('/api/koubo/devices/binding-code', {})
+  createBindingCode(type = 'mobile') {
+    return http.post('/api/koubo/devices/binding-code', { type })
+  },
+  listDevices() {
+    return http.get('/api/koubo/devices')
+  },
+  revokeDevice(deviceId) {
+    return http.delete(`/api/koubo/devices/${deviceId}`)
   },
   createEditJob(projectId, template) {
     return http.post(`/api/koubo/projects/${projectId}/edit-jobs`, { template })
