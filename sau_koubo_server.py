@@ -1,5 +1,10 @@
 import os
+import sys
 from pathlib import Path
+
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 from conf import BASE_DIR
 from koubo_integration import KouboStore, create_koubo_blueprint, register_realtime
