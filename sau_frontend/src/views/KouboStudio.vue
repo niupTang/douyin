@@ -1,5 +1,25 @@
 <template>
   <div class="studio">
+    <div v-if="!authorized" class="auth-gate">
+      <div class="auth-card">
+        <span>PRIVATE CONTENT SYSTEM</span>
+        <h1>管理员授权</h1>
+        <p>请输入服务器配置的管理员令牌，验证通过后进入口播生产工作台。</p>
+        <el-input
+          v-model="tokenInput"
+          type="password"
+          size="large"
+          show-password
+          placeholder="KOUBO_ADMIN_TOKEN"
+          @keyup.enter="authorize"
+        />
+        <el-button type="primary" size="large" :loading="authorizing" @click="authorize">
+          验证并进入
+        </el-button>
+        <small>令牌只保存在当前浏览器，不会写入口播项目。</small>
+      </div>
+    </div>
+    <template v-else>
     <header class="hero">
       <div>
         <span>CONTENT PIPELINE</span>
@@ -7,7 +27,7 @@
         <p>文案同步、手机提词、自动剪辑和发布资料在一个项目中流转。</p>
       </div>
       <div class="hero-actions">
-        <el-button size="large" @click="setAdminToken">设置管理员令牌</el-button>
+        <el-button size="large" @click="logout">退出授权</el-button>
         <el-button type="primary" size="large" @click="createProject">新建口播项目</el-button>
       </div>
     </header>
@@ -97,6 +117,7 @@
         <el-empty v-else description="新建或选择一个项目开始" />
       </main>
     </div>
+    </template>
   </div>
 </template>
 
@@ -108,6 +129,9 @@ import { kouboApi } from '@/api/koubo'
 
 const projects = ref([])
 const devices = ref([])
+const authorized = ref(false)
+const tokenInput = ref('')
+const authorizing = ref(false)
 const selected = ref(null)
 const script = ref('')
 const saving = ref(false)
@@ -148,15 +172,30 @@ async function loadDevices() {
   devices.value = (response.data || []).filter((item) => !item.revoked_at)
 }
 
-async function setAdminToken() {
-  const { value } = await ElMessageBox.prompt('输入服务器配置的 KOUBO_ADMIN_TOKEN', '管理员令牌', {
-    confirmButtonText: '保存',
-    cancelButtonText: '取消',
-    inputType: 'password'
-  })
+async function authorize() {
+  const value = tokenInput.value.trim()
+  if (!value) return ElMessage.warning('请输入管理员令牌')
+  authorizing.value = true
   localStorage.setItem('koubo_admin_token', value)
-  await loadProjects()
-  ElMessage.success('管理员令牌已保存到当前浏览器')
+  try {
+    await Promise.all([loadProjects(), loadDevices()])
+    authorized.value = true
+    tokenInput.value = ''
+    ElMessage.success('管理员授权成功')
+  } catch (error) {
+    localStorage.removeItem('koubo_admin_token')
+    ElMessage.error('管理员令牌无效')
+  } finally {
+    authorizing.value = false
+  }
+}
+
+function logout() {
+  localStorage.removeItem('koubo_admin_token')
+  authorized.value = false
+  projects.value = []
+  devices.value = []
+  selected.value = null
 }
 
 function selectProject(project) {
@@ -257,12 +296,20 @@ async function sendToPublish() {
 }
 
 onMounted(async () => {
-  await Promise.all([loadProjects(), loadDevices()])
+  const saved = localStorage.getItem('koubo_admin_token')
+  if (!saved) return
+  tokenInput.value = saved
+  await authorize()
 })
 </script>
 
 <style scoped lang="scss">
 .studio { color:#18202d; }
+.auth-gate { min-height:calc(100vh - 180px); display:grid; place-items:center; padding:40px 20px; }
+.auth-card { width:min(460px,100%); display:grid; gap:18px; padding:38px; border:1px solid #e0e4ea; border-radius:24px; background:#fff; box-shadow:0 24px 80px #0f172a1f; }
+.auth-card > span { color:#a77b08; font-size:12px; font-weight:800; letter-spacing:.18em; }
+.auth-card h1,.auth-card p { margin:0; }
+.auth-card p,.auth-card small { color:#7b8492; line-height:1.7; }
 .hero { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding:28px 30px; border-radius:18px; color:#fff; background:linear-gradient(125deg,#111827,#252019); }
 .hero span { color:#f2c94c; font-size:11px; font-weight:800; letter-spacing:.18em; }
 .hero h1 { margin:8px 0; font-size:30px; }
