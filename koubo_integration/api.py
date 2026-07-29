@@ -7,7 +7,9 @@ from pathlib import Path
 
 from flask import Blueprint, jsonify, request, send_file
 from werkzeug.utils import secure_filename
+from PIL import Image
 from .cover import render_cover
+from .templates import TEMPLATE_DEFINITIONS, template_snapshot
 
 
 def response(data=None, message=None, status=200):
@@ -56,6 +58,11 @@ def create_koubo_blueprint(store, storage_root=None, admin_token=None):
     @admin_required
     def list_projects():
         return response(store.list_projects())
+
+    @blueprint.get("/templates")
+    @admin_required
+    def list_templates():
+        return response(list(TEMPLATE_DEFINITIONS.values()))
 
     @blueprint.post("/projects")
     @admin_required
@@ -282,7 +289,22 @@ def create_koubo_blueprint(store, storage_root=None, admin_token=None):
             return response(message="封面标题不能为空", status=400)
         target_dir = storage_root / "projects" / project_id / "cover"
         target = target_dir / f"{uuid.uuid4().hex}.png"
-        render_cover(target, title, template, str(payload.get("author", "")).strip())
+        portrait = next(
+            (
+                item
+                for item in reversed(store.list_assets(project_id))
+                if item["kind"] == "portrait"
+            ),
+            None,
+        )
+        portrait_path = storage_root / portrait["storage_path"] if portrait else None
+        render_cover(
+            target,
+            title,
+            template,
+            str(payload.get("author", "")).strip(),
+            portrait_path,
+        )
         content = target.read_bytes()
         asset = store.add_asset(
             project_id,
@@ -291,6 +313,46 @@ def create_koubo_blueprint(store, storage_root=None, admin_token=None):
             target.name,
             len(content),
             hashlib.sha256(content).hexdigest(),
+        )
+        return response(asset, status=201)
+
+    @blueprint.post("/projects/<project_id>/portrait")
+    @admin_required
+    def upload_portrait(project_id):
+        if not store.get_project(project_id):
+            return response(message="项目不存在", status=404)
+        uploaded = request.files.get("file")
+        if not uploaded or not uploaded.filename:
+            return response(message="请选择人物照片", status=400)
+        suffix = Path(uploaded.filename).suffix.lower()
+        if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
+            return response(message="仅支持 JPG、PNG 或 WebP 图片", status=400)
+        target_dir = storage_root / "projects" / project_id / "cover"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target = target_dir / f"portrait-{uuid.uuid4().hex}{suffix}"
+        digest = hashlib.sha256()
+        size = 0
+        with target.open("wb") as output:
+            while True:
+                block = uploaded.stream.read(1024 * 1024)
+                if not block:
+                    break
+                output.write(block)
+                digest.update(block)
+                size += len(block)
+        try:
+            with Image.open(target) as image:
+                image.verify()
+        except Exception:
+            target.unlink(missing_ok=True)
+            return response(message="图片文件损坏或格式不支持", status=400)
+        asset = store.add_asset(
+            project_id,
+            "portrait",
+            str(target.relative_to(storage_root)),
+            uploaded.filename,
+            size,
+            digest.hexdigest(),
         )
         return response(asset, status=201)
 
@@ -336,6 +398,24 @@ def create_koubo_blueprint(store, storage_root=None, admin_token=None):
         }
         return response(package)
 
+    @blueprint.post("/projects/<project_id>/publish-result")
+    @admin_required
+    def publish_result(project_id):
+        if not store.get_project(project_id):
+            return response(message="项目不存在", status=404)
+        payload = request.get_json(silent=True) or {}
+        status = payload.get("status")
+        if status not in {"success", "failed"}:
+            return response(message="发布结果状态无效", status=400)
+        event = store.record_publish(
+            project_id,
+            payload.get("platform", "unknown"),
+            status,
+            payload.get("platform_url"),
+            payload.get("error_message"),
+        )
+        return response(event, status=201)
+
     @blueprint.get("/worker/assets/<asset_id>/download")
     @device_required("worker")
     def worker_download_asset(device, asset_id):
@@ -354,7 +434,9 @@ def create_koubo_blueprint(store, storage_root=None, admin_token=None):
         template = payload.get("template", "knowledge")
         if template not in {"knowledge", "business"}:
             return response(message="仅支持 knowledge 或 business 模板", status=400)
-        job = store.create_edit_job(project_id, template)
+        overrides = payload.get("overrides") if isinstance(payload.get("overrides"), dict) else {}
+        snapshot = template_snapshot(template, overrides)
+        job = store.create_edit_job(project_id, template, snapshot)
         return response(job, status=201) if job else response(message="项目不存在", status=404)
 
     @blueprint.post("/worker/claim")

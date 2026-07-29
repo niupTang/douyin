@@ -2,7 +2,7 @@ import os
 import textwrap
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageOps
 
 
 WIDTH = 1080
@@ -34,7 +34,7 @@ def split_title(title, line_length=7):
     return textwrap.wrap(normalized, width=line_length)[:4] or ["口播封面"]
 
 
-def render_cover(output_path, title, template="knowledge", author=""):
+def render_cover(output_path, title, template="knowledge", author="", portrait_path=None):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if template == "business":
@@ -48,6 +48,20 @@ def render_cover(output_path, title, template="knowledge", author=""):
         foreground = (250, 249, 244)
         label = "KNOWLEDGE"
     image = Image.new("RGB", (WIDTH, HEIGHT), background)
+    if portrait_path and Path(portrait_path).is_file():
+        with Image.open(portrait_path) as portrait:
+            portrait = ImageOps.exif_transpose(portrait).convert("RGB")
+            portrait = ImageOps.fit(
+                portrait, (WIDTH, HEIGHT), method=Image.Resampling.LANCZOS, centering=(0.5, 0.42)
+            )
+            portrait = ImageEnhance.Brightness(portrait).enhance(0.52)
+            image.paste(portrait)
+            veil = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+            veil_draw = ImageDraw.Draw(veil)
+            for y in range(HEIGHT):
+                alpha = int(35 + 115 * (y / HEIGHT))
+                veil_draw.line((0, y, WIDTH, y), fill=(0, 0, 0, alpha))
+            image = Image.alpha_composite(image.convert("RGBA"), veil).convert("RGB")
     draw = ImageDraw.Draw(image)
     for y in range(HEIGHT):
         shade = int(26 * (1 - y / HEIGHT))
@@ -57,7 +71,7 @@ def render_cover(output_path, title, template="knowledge", author=""):
     draw.line((72, 224, 1008, 224), fill=accent, width=5)
     lines = split_title(title)
     title_font = font(142 if len(lines) <= 3 else 118)
-    y = 520
+    y = 490
     for index, line in enumerate(lines):
         fill = accent if index == 1 or (len(lines) == 1 and index == 0) else foreground
         bbox = draw.textbbox((0, 0), line, font=title_font, stroke_width=2)

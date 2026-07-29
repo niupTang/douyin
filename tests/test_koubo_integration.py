@@ -210,3 +210,122 @@ def test_binding_code_locks_device_type_and_admin_can_revoke(tmp_path):
     assert devices[0]["type"] == "worker"
     assert client.delete(f"/api/koubo/devices/{worker['device_id']}").status_code == 200
     assert store.authenticate(worker["token"], "worker") is None
+
+
+def test_publish_result_updates_project_status(tmp_path):
+    client, store = make_client(tmp_path)
+    project = client.post("/api/koubo/projects", json={"topic": "发布结果"}).get_json()["data"]
+    result = client.post(
+        f"/api/koubo/projects/{project['id']}/publish-result",
+        json={"platform": 3, "status": "success"},
+    )
+    assert result.status_code == 201
+    assert store.get_project(project["id"])["status"] == "published"
+
+
+def test_portrait_can_be_uploaded_and_used_for_cover(tmp_path):
+    client, _ = make_client(tmp_path)
+    project = client.post("/api/koubo/projects", json={"topic": "人物封面"}).get_json()["data"]
+    portrait_buffer = io.BytesIO()
+    Image.new("RGB", (600, 900), (120, 80, 60)).save(portrait_buffer, "JPEG")
+    portrait_buffer.seek(0)
+    uploaded = client.post(
+        f"/api/koubo/projects/{project['id']}/portrait",
+        data={"file": (portrait_buffer, "portrait.jpg")},
+        content_type="multipart/form-data",
+    )
+    assert uploaded.status_code == 201
+    cover = client.post(
+        f"/api/koubo/projects/{project['id']}/cover",
+        json={"template": "knowledge"},
+    )
+    assert cover.status_code == 201
+
+
+def test_edit_job_freezes_template_parameters(tmp_path):
+    client, _ = make_client(tmp_path)
+    project = client.post("/api/koubo/projects", json={"topic": "模板快照"}).get_json()["data"]
+    created = client.post(
+        f"/api/koubo/projects/{project['id']}/edit-jobs",
+        json={
+            "template": "knowledge",
+            "overrides": {"broll_level": 3, "target_duration_seconds": 45},
+        },
+    )
+    snapshot = created.get_json()["data"]["template_snapshot"]
+    assert snapshot["version"] == 1
+    assert snapshot["parameters"]["broll_level"] == 3
+    assert snapshot["parameters"]["target_duration_seconds"] == 45
+
+
+def test_full_project_lifecycle(tmp_path):
+    client, store = make_client(tmp_path)
+    project = client.post(
+        "/api/koubo/projects",
+        json={"topic": "完整闭环", "title": "AI 口播闭环", "script": "第一版文案"},
+    ).get_json()["data"]
+    synced = client.put(
+        f"/api/koubo/projects/{project['id']}/script",
+        json={"script": "同步到手机的最终文案"},
+    ).get_json()["data"]
+    assert synced["status"] == "synced"
+
+    mobile_code = client.post(
+        "/api/koubo/devices/binding-code", json={"type": "mobile"}
+    ).get_json()["data"]
+    mobile = client.post(
+        "/api/koubo/devices/claim",
+        json={"code": mobile_code["code"], "name": "iPhone", "type": "mobile"},
+    ).get_json()["data"]
+    mobile_headers = {"Authorization": f"Bearer {mobile['token']}"}
+    latest = client.get("/api/koubo/mobile/latest", headers=mobile_headers).get_json()["data"]
+    assert latest["project"]["script"] == "同步到手机的最终文案"
+
+    raw_content = b"raw-video"
+    uploaded = client.post(
+        f"/api/koubo/mobile/projects/{project['id']}/raw-video",
+        headers=mobile_headers,
+        data={"file": (io.BytesIO(raw_content), "take.mov")},
+        content_type="multipart/form-data",
+    )
+    assert uploaded.status_code == 201
+
+    job = client.post(
+        f"/api/koubo/projects/{project['id']}/edit-jobs",
+        json={"template": "knowledge"},
+    ).get_json()["data"]
+    worker_code = client.post(
+        "/api/koubo/devices/binding-code", json={"type": "worker"}
+    ).get_json()["data"]
+    worker = client.post(
+        "/api/koubo/devices/claim",
+        json={"code": worker_code["code"], "name": "Windows", "type": "worker"},
+    ).get_json()["data"]
+    worker_headers = {"Authorization": f"Bearer {worker['token']}"}
+    claimed = client.post("/api/koubo/worker/claim", headers=worker_headers).get_json()["data"]
+    assert claimed["id"] == job["id"]
+    client.post(
+        f"/api/koubo/worker/jobs/{job['id']}/artifacts",
+        headers=worker_headers,
+        data={"kind": "edited_video", "file": (io.BytesIO(b"edited"), "final.mp4")},
+        content_type="multipart/form-data",
+    )
+    client.put(
+        f"/api/koubo/worker/jobs/{job['id']}",
+        headers=worker_headers,
+        json={"status": "completed", "progress": 100},
+    )
+    assert store.get_project(project["id"])["status"] == "waiting_cover"
+
+    client.post(
+        f"/api/koubo/projects/{project['id']}/cover",
+        json={"template": "knowledge"},
+    )
+    assert store.get_project(project["id"])["status"] == "waiting_review"
+    assert client.post(f"/api/koubo/projects/{project['id']}/approve").status_code == 200
+    assert store.get_project(project["id"])["status"] == "ready_publish"
+    client.post(
+        f"/api/koubo/projects/{project['id']}/publish-result",
+        json={"platform": 3, "status": "success"},
+    )
+    assert store.get_project(project["id"])["status"] == "published"

@@ -19,8 +19,8 @@ export const kouboApi = {
   revokeDevice(deviceId) {
     return http.delete(`/api/koubo/devices/${deviceId}`)
   },
-  createEditJob(projectId, template) {
-    return http.post(`/api/koubo/projects/${projectId}/edit-jobs`, { template })
+  createEditJob(projectId, template, overrides = {}) {
+    return http.post(`/api/koubo/projects/${projectId}/edit-jobs`, { template, overrides })
   },
   listAssets(projectId) {
     return http.get(`/api/koubo/projects/${projectId}/assets`)
@@ -28,7 +28,17 @@ export const kouboApi = {
   createCover(projectId, payload) {
     return http.post(`/api/koubo/projects/${projectId}/cover`, payload)
   },
+  uploadPortrait(projectId, file) {
+    const form = new FormData()
+    form.append('file', file)
+    return http.post(`/api/koubo/projects/${projectId}/portrait`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
   approveProject(projectId) {
     return http.post(`/api/koubo/projects/${projectId}/approve`, {})
+  },
+  markPublished(projectId, payload) {
+    return http.post(`/api/koubo/projects/${projectId}/publish-result`, payload)
   }
 }

@@ -93,6 +93,15 @@ class KouboStore:
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS koubo_publish_events (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    platform TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    platform_url TEXT,
+                    error_message TEXT,
+                    created_at TEXT NOT NULL
+                );
                 """
             )
             binding_columns = {
@@ -222,6 +231,36 @@ class KouboStore:
             )
         return result.rowcount > 0
 
+    def record_publish(self, project_id, platform, status, platform_url=None, error_message=None):
+        event_id = str(uuid.uuid4())
+        with self.connect() as connection:
+            connection.execute(
+                """INSERT INTO koubo_publish_events
+                (id, project_id, platform, status, platform_url, error_message, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    event_id,
+                    project_id,
+                    str(platform),
+                    status,
+                    platform_url,
+                    error_message,
+                    utc_now(),
+                ),
+            )
+            connection.execute(
+                "UPDATE koubo_projects SET status = ?, updated_at = ? WHERE id = ?",
+                ("published" if status == "success" else "publish_failed", utc_now(), project_id),
+            )
+        return {
+            "id": event_id,
+            "project_id": project_id,
+            "platform": str(platform),
+            "status": status,
+            "platform_url": platform_url,
+            "error_message": error_message,
+        }
+
     def authenticate(self, token, device_type=None):
         if not token:
             return None
@@ -238,17 +277,13 @@ class KouboStore:
             )
         return dict(row)
 
-    def create_edit_job(self, project_id, template):
+    def create_edit_job(self, project_id, template, snapshot=None):
         project = self.get_project(project_id)
         if not project:
             return None
         job_id = str(uuid.uuid4())
         now = utc_now()
-        snapshot = {
-            "id": template,
-            "version": 1,
-            "profile": "knowledge" if template == "knowledge" else "business",
-        }
+        snapshot = snapshot or {"id": template, "version": 1}
         with self.connect() as connection:
             connection.execute(
                 """INSERT INTO koubo_edit_jobs
@@ -275,6 +310,11 @@ class KouboStore:
             if kind == "raw_video":
                 connection.execute(
                     "UPDATE koubo_projects SET status = 'uploaded', updated_at = ? WHERE id = ?",
+                    (now, project_id),
+                )
+            elif kind == "cover":
+                connection.execute(
+                    "UPDATE koubo_projects SET status = 'waiting_review', updated_at = ? WHERE id = ?",
                     (now, project_id),
                 )
         return {

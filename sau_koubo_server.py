@@ -6,6 +6,7 @@ from koubo_integration import KouboStore, create_koubo_blueprint, register_realt
 from sau_backend import app
 
 
+app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024 * 1024
 koubo_store = KouboStore(Path(BASE_DIR / "db" / "database.db"))
 koubo_store.initialize()
 app.register_blueprint(

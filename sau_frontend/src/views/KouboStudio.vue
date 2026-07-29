@@ -67,6 +67,10 @@
                 <b>商业观点</b><small>黑金视觉 · 金句卡片 · 电影感调色</small>
               </button>
             </div>
+            <div class="template-tuning">
+              <label><span>B-roll 数量</span><el-slider v-model="brollLevel" :min="0" :max="3" show-stops /></label>
+              <label><span>目标时长（秒）</span><el-input-number v-model="targetDuration" :min="15" :max="600" :step="15" /></label>
+            </div>
             <el-button :disabled="selected.status !== 'uploaded'" @click="submitEdit">
               创建剪辑任务
             </el-button>
@@ -74,6 +78,11 @@
           <section class="template-section">
             <div><strong>口播封面</strong><span>输出 1080 × 1920 PNG</span></div>
             <el-input v-model="coverTitle" placeholder="输入封面标题" />
+            <label class="portrait-upload">
+              <strong>{{ portraitName || '上传人物照片（可选）' }}</strong>
+              <span>支持 JPG、PNG、WebP，生成时自动作为封面背景</span>
+              <input type="file" accept="image/jpeg,image/png,image/webp" @change="uploadPortrait" />
+            </label>
             <div class="cover-actions">
               <el-button :loading="covering" @click="generateCover">生成对应模板封面</el-button>
               <a v-if="coverUrl" :href="coverUrl" target="_blank" rel="noreferrer">打开封面预览</a>
@@ -104,9 +113,12 @@ const script = ref('')
 const saving = ref(false)
 const bindingCode = ref('')
 const template = ref('knowledge')
+const brollLevel = ref(2)
+const targetDuration = ref(60)
 const coverTitle = ref('')
 const covering = ref(false)
 const coverUrl = ref('')
+const portraitName = ref('')
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5409'
 const router = useRouter()
 
@@ -142,7 +154,7 @@ async function setAdminToken() {
     cancelButtonText: '取消',
     inputType: 'password'
   })
-  localStorage.setItem('token', value)
+  localStorage.setItem('koubo_admin_token', value)
   await loadProjects()
   ElMessage.success('管理员令牌已保存到当前浏览器')
 }
@@ -151,6 +163,8 @@ function selectProject(project) {
   selected.value = project
   script.value = project.script || ''
   template.value = project.edit_template || 'knowledge'
+  brollLevel.value = template.value === 'business' ? 1 : 2
+  targetDuration.value = template.value === 'business' ? 90 : 60
   bindingCode.value = ''
   coverTitle.value = project.title || project.topic || ''
   coverUrl.value = ''
@@ -199,7 +213,10 @@ async function revokeDevice(device) {
 }
 
 async function submitEdit() {
-  await kouboApi.createEditJob(selected.value.id, template.value)
+  await kouboApi.createEditJob(selected.value.id, template.value, {
+    broll_level: brollLevel.value,
+    target_duration_seconds: targetDuration.value
+  })
   ElMessage.success('剪辑任务已创建')
   await loadProjects()
 }
@@ -212,12 +229,20 @@ async function generateCover() {
       title: coverTitle.value,
       template: template.value
     })
-    const token = encodeURIComponent(localStorage.getItem('token') || '')
+    const token = encodeURIComponent(localStorage.getItem('koubo_admin_token') || '')
     coverUrl.value = `${apiBase}/api/koubo/assets/${response.data.id}/content?token=${token}`
     ElMessage.success('封面已生成')
   } finally {
     covering.value = false
   }
+}
+
+async function uploadPortrait(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  await kouboApi.uploadPortrait(selected.value.id, file)
+  portraitName.value = file.name
+  ElMessage.success('人物照片已上传')
 }
 
 async function sendToPublish() {
@@ -269,9 +294,15 @@ onMounted(async () => {
 .templates button { display:grid; gap:8px; border:1px solid #e1e5eb; border-radius:12px; padding:16px; text-align:left; background:#fff; }
 .templates button.active { border-color:#d7ad27; background:#fffaf0; box-shadow:0 0 0 2px #f2c94c33; }
 .templates small { color:#7b8492; }
+.template-tuning { display:grid; grid-template-columns:1fr 1fr; gap:24px; padding:14px; border-radius:12px; background:#f7f8fa; }
+.template-tuning label { display:grid; gap:8px; }
+.template-tuning span { color:#596273; font-size:12px; }
 .cover-actions { display:flex; align-items:center; gap:16px; }
 .cover-actions a { color:#9a7412; font-size:13px; }
 .cover-preview { width:240px; max-width:100%; border-radius:14px; box-shadow:0 16px 36px #11182726; }
+.portrait-upload { position:relative; display:grid; gap:5px; border:1px dashed #d7bd70; border-radius:12px; padding:14px; background:#fffcf3; cursor:pointer; }
+.portrait-upload span { color:#8a8068; font-size:12px; }
+.portrait-upload input { position:absolute; inset:0; opacity:0; cursor:pointer; }
 .publish-ready { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-top:28px; border:1px solid #bde4cd; border-radius:14px; padding:18px; background:#f1fbf5; }
 .publish-ready div { display:grid; gap:5px; }
 .publish-ready span { color:#688075; font-size:12px; }

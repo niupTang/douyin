@@ -6,8 +6,14 @@ import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import './styles/index.scss'
+import KouboStudio from './views/KouboStudio.vue'
 
 const app = createApp(App)
+router.addRoute({
+  path: '/koubo-studio',
+  name: 'KouboStudio',
+  component: KouboStudio
+})
 
 // 注册 Element Plus 图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {

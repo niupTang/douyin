@@ -35,6 +35,10 @@
           <el-icon><Picture /></el-icon>
           <template #title>素材资产</template>
         </el-menu-item>
+        <el-menu-item index="/koubo-studio">
+          <el-icon><VideoCamera /></el-icon>
+          <template #title>口播工作台</template>
+        </el-menu-item>
         <el-menu-item index="/publish-center">
           <el-icon><Upload /></el-icon>
           <template #title>发布中心</template>
@@ -91,7 +95,8 @@ import {
   Refresh,
   TrendCharts,
   Upload,
-  User
+  User,
+  VideoCamera
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -103,6 +108,7 @@ const pageMeta = {
   '/idea-radar': { kicker: 'Insight', title: '爆款拆解' },
   '/own-content-review': { kicker: 'Review', title: '作品复盘' },
   '/material-management': { kicker: 'Assets', title: '素材资产' },
+  '/koubo-studio': { kicker: 'Koubo Studio', title: '口播生产工作台' },
   '/publish-center': { kicker: 'Publish', title: '发布中心' },
   '/account-management': { kicker: 'Accounts', title: '账号管理' },
   '/data': { kicker: 'Data', title: '数据明细' }
