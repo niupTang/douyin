@@ -1,0 +1,192 @@
+import io
+from pathlib import Path
+
+from flask import Flask
+from PIL import Image
+
+from koubo_integration import KouboStore, create_koubo_blueprint
+
+
+def make_client(tmp_path):
+    store = KouboStore(Path(tmp_path) / "koubo.db")
+    store.initialize()
+    app = Flask(__name__)
+    app.register_blueprint(create_koubo_blueprint(store, Path(tmp_path) / "files"))
+    app.testing = True
+    return app.test_client(), store
+
+
+def test_project_script_sync_and_mobile_binding(tmp_path):
+    client, _ = make_client(tmp_path)
+    created = client.post(
+        "/api/koubo/projects",
+        json={"topic": "AI 提效", "script": "初稿", "tags": ["AI"]},
+    )
+    assert created.status_code == 201
+    project = created.get_json()["data"]
+
+    updated = client.put(
+        f"/api/koubo/projects/{project['id']}/script",
+        json={"script": "同步到手机的新文案"},
+    )
+    assert updated.status_code == 200
+    assert updated.get_json()["data"]["script_version"] == 2
+
+    binding = client.post("/api/koubo/devices/binding-code").get_json()["data"]
+    claimed = client.post(
+        "/api/koubo/devices/claim",
+        json={"code": binding["code"], "name": "iPhone", "type": "mobile"},
+    )
+    assert claimed.status_code == 201
+    token = claimed.get_json()["data"]["token"]
+
+    latest = client.get(
+        "/api/koubo/mobile/latest",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert latest.status_code == 200
+    assert latest.get_json()["data"]["project"]["script"] == "同步到手机的新文案"
+
+
+def test_binding_code_is_single_use(tmp_path):
+    client, _ = make_client(tmp_path)
+    binding = client.post("/api/koubo/devices/binding-code").get_json()["data"]
+    payload = {"code": binding["code"], "name": "iPhone", "type": "mobile"}
+    assert client.post("/api/koubo/devices/claim", json=payload).status_code == 201
+    assert client.post("/api/koubo/devices/claim", json=payload).status_code == 400
+
+
+def test_worker_claims_each_job_once(tmp_path):
+    client, store = make_client(tmp_path)
+    project = client.post("/api/koubo/projects", json={"topic": "商业观点"}).get_json()["data"]
+    job = client.post(
+        f"/api/koubo/projects/{project['id']}/edit-jobs",
+        json={"template": "business"},
+    )
+    assert job.status_code == 201
+
+    binding = store.create_binding_code()
+    worker = store.claim_binding_code(binding["code"], "Windows", "worker")
+    headers = {"Authorization": f"Bearer {worker['token']}"}
+    first = client.post("/api/koubo/worker/claim", headers=headers)
+    second = client.post("/api/koubo/worker/claim", headers=headers)
+    assert first.get_json()["data"]["template_snapshot"]["id"] == "business"
+    assert second.get_json()["data"] is None
+
+
+def test_mobile_uploads_raw_video(tmp_path):
+    client, store = make_client(tmp_path)
+    project = client.post("/api/koubo/projects", json={"topic": "上传测试"}).get_json()["data"]
+    binding = store.create_binding_code()
+    mobile = store.claim_binding_code(binding["code"], "iPhone", "mobile")
+    uploaded = client.post(
+        f"/api/koubo/mobile/projects/{project['id']}/raw-video",
+        headers={"Authorization": f"Bearer {mobile['token']}"},
+        data={"file": (io.BytesIO(b"fake-video-content"), "take.mov")},
+        content_type="multipart/form-data",
+    )
+    assert uploaded.status_code == 201
+    assert uploaded.get_json()["data"]["size"] == len(b"fake-video-content")
+    assert store.get_project(project["id"])["status"] == "uploaded"
+
+
+def test_mobile_resumes_chunked_upload_and_worker_returns_artifact(tmp_path):
+    client, store = make_client(tmp_path)
+    project = client.post("/api/koubo/projects", json={"topic": "分片上传"}).get_json()["data"]
+    mobile_binding = store.create_binding_code()
+    mobile = store.claim_binding_code(mobile_binding["code"], "iPhone", "mobile")
+    mobile_headers = {"Authorization": f"Bearer {mobile['token']}"}
+    content = b"0123456789ABCDEF"
+    initialized = client.post(
+        f"/api/koubo/mobile/projects/{project['id']}/uploads",
+        headers=mobile_headers,
+        json={"filename": "take.mov", "total_size": len(content), "chunk_size": 8, "total_chunks": 2},
+    ).get_json()["data"]
+    for index, chunk in [(1, content[8:]), (0, content[:8])]:
+        uploaded = client.put(
+            f"/api/koubo/mobile/uploads/{initialized['id']}/chunks/{index}",
+            headers={**mobile_headers, "Content-Type": "application/octet-stream"},
+            data=chunk,
+        )
+        assert uploaded.status_code == 200
+    completed = client.post(
+        f"/api/koubo/mobile/uploads/{initialized['id']}/complete",
+        headers=mobile_headers,
+    )
+    assert completed.status_code == 201
+    assert completed.get_json()["data"]["checksum"]
+
+    client.post(
+        f"/api/koubo/projects/{project['id']}/edit-jobs",
+        json={"template": "knowledge"},
+    )
+    worker_binding = store.create_binding_code()
+    worker = store.claim_binding_code(worker_binding["code"], "Windows", "worker")
+    worker_headers = {"Authorization": f"Bearer {worker['token']}"}
+    job = client.post("/api/koubo/worker/claim", headers=worker_headers).get_json()["data"]
+    artifact = client.post(
+        f"/api/koubo/worker/jobs/{job['id']}/artifacts",
+        headers=worker_headers,
+        data={"kind": "edited_video", "file": (io.BytesIO(b"final-video"), "final.mp4")},
+        content_type="multipart/form-data",
+    )
+    assert artifact.status_code == 201
+    finished = client.put(
+        f"/api/koubo/worker/jobs/{job['id']}",
+        headers=worker_headers,
+        json={"status": "completed", "progress": 100},
+    )
+    assert finished.status_code == 200
+    assert store.get_project(project["id"])["status"] == "waiting_cover"
+
+
+def test_generates_1080_by_1920_cover(tmp_path):
+    client, store = make_client(tmp_path)
+    project = client.post(
+        "/api/koubo/projects",
+        json={"topic": "AI 提效", "title": "普通人如何用 AI 提升效率"},
+    ).get_json()["data"]
+    generated = client.post(
+        f"/api/koubo/projects/{project['id']}/cover",
+        json={"template": "business", "author": "SUN"},
+    )
+    assert generated.status_code == 201
+    asset = generated.get_json()["data"]
+    target = Path(tmp_path) / "files" / asset["storage_path"]
+    with Image.open(target) as image:
+        assert image.size == (1080, 1920)
+
+
+def test_requires_video_and_cover_before_publish_approval(tmp_path):
+    client, store = make_client(tmp_path)
+    project = client.post(
+        "/api/koubo/projects", json={"topic": "发布闭环", "title": "发布标题", "tags": ["AI"]}
+    ).get_json()["data"]
+    assert client.post(f"/api/koubo/projects/{project['id']}/approve").status_code == 409
+    video_path = Path(tmp_path) / "files" / "projects" / project["id"] / "edit" / "final.mp4"
+    video_path.parent.mkdir(parents=True, exist_ok=True)
+    video_path.write_bytes(b"video")
+    store.add_asset(
+        project["id"], "edited_video", str(video_path.relative_to(Path(tmp_path) / "files")),
+        "final.mp4", 5, "checksum"
+    )
+    client.post(f"/api/koubo/projects/{project['id']}/cover", json={"template": "knowledge"})
+    approved = client.post(f"/api/koubo/projects/{project['id']}/approve")
+    assert approved.status_code == 200
+    assert approved.get_json()["data"]["video"]["absolute_path"].endswith("final.mp4")
+    assert store.get_project(project["id"])["status"] == "ready_publish"
+
+
+def test_admin_token_protects_control_plane(tmp_path):
+    store = KouboStore(Path(tmp_path) / "secure.db")
+    store.initialize()
+    app = Flask(__name__)
+    app.register_blueprint(
+        create_koubo_blueprint(store, Path(tmp_path) / "secure-files", admin_token="secret")
+    )
+    client = app.test_client()
+    assert client.get("/api/koubo/projects").status_code == 401
+    authorized = client.get(
+        "/api/koubo/projects", headers={"Authorization": "Bearer secret"}
+    )
+    assert authorized.status_code == 200
