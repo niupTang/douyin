@@ -20,11 +20,11 @@ import uuid
 import urllib.error
 import urllib.request
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
 from queue import Empty, Queue
 from flask_cors import CORS
-from functools import wraps
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from itsdangerous import URLSafeTimedSerializer
 from myUtils.auth import check_cookie
 from myUtils.douyin_benchmark import (
     discover_douyin_benchmark_accounts,
@@ -32,7 +32,6 @@ from myUtils.douyin_benchmark import (
     scrape_douyin_benchmark,
 )
 from flask import Flask, request, jsonify, Response, render_template, send_from_directory
-from werkzeug.security import check_password_hash, generate_password_hash
 from backend_app.agent.gateway_client import (
     get_hermes_settings as agent_get_hermes_settings,
     hermes_request as agent_hermes_request,
@@ -74,6 +73,8 @@ from backend_app.modules.accounts.login_service import run_login_task, sse_strea
 from backend_app.modules.dashboard.service import get_dashboard_stats as dashboard_stats_service
 from backend_app.modules.materials import repository as material_repository
 from backend_app.modules.materials import service as material_service
+from backend_app.common.database import ensure_core_tables as ensure_base_tables
+from backend_app.modules.auth import local_auth
 from conf import BASE_DIR
 from myUtils.login import get_tencent_cookie, douyin_cookie_gen, get_ks_cookie, xiaohongshu_cookie_gen
 from myUtils.postVideo import post_video_tencent, post_video_DouYin, post_video_ks, post_video_xhs
@@ -164,91 +165,28 @@ def resolve_executable(command, label):
 
 
 def ensure_local_auth_table():
-    db_path = get_db_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
-        cursor = conn.cursor()
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS local_admins (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            display_name TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        default_username = os.environ.get("SAU_ADMIN_USER", "admin")
-        default_password = os.environ.get("SAU_ADMIN_PASSWORD", "admin123")
-        cursor.execute("SELECT id FROM local_admins WHERE username = ?", (default_username,))
-        if cursor.fetchone() is None:
-            cursor.execute(
-                "INSERT INTO local_admins (username, password_hash, display_name) VALUES (?, ?, ?)",
-                (default_username, generate_password_hash(default_password), "Administrator"),
-            )
-        conn.commit()
+    local_auth.ensure_admin_table(get_db_path())
 
 
 def ensure_core_tables():
     ensure_local_auth_table()
-    db_path = get_db_path()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
-        cursor = conn.cursor()
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_info (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            type INTEGER NOT NULL,
-            filePath TEXT NOT NULL,
-            userName TEXT NOT NULL,
-            status INTEGER DEFAULT 0,
-            follower_count INTEGER DEFAULT 0
-        )
-        ''')
-        user_info_columns = {
-            row[1] for row in cursor.execute("PRAGMA table_info(user_info)").fetchall()
-        }
-        if "follower_count" not in user_info_columns:
-            cursor.execute(
-                "ALTER TABLE user_info ADD COLUMN follower_count INTEGER DEFAULT 0"
-            )
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS file_records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT NOT NULL,
-            filesize REAL,
-            upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-            file_path TEXT
-        )
-        ''')
-        conn.commit()
+    ensure_base_tables(get_db_path())
     ensure_publish_records_table()
     ensure_douyin_benchmark_tables()
     ensure_douyin_own_tables()
 
 
 def create_auth_token(admin):
-    return token_serializer.dumps({
-        "id": admin["id"],
-        "username": admin["username"],
-        "display_name": admin["display_name"],
-    })
+    return local_auth.create_token(token_serializer, admin)
 
 
 def parse_auth_token():
-    auth_header = request.headers.get("Authorization", "")
-    token = None
-    if auth_header.startswith("Bearer "):
-        token = auth_header.removeprefix("Bearer ").strip()
-    if not token:
-        token = request.args.get("token")
-    if not token:
-        return None
-    try:
-        data = token_serializer.loads(token, max_age=AUTH_TOKEN_MAX_AGE)
-    except (BadSignature, SignatureExpired):
-        return None
-    return data
+    return local_auth.parse_token(
+        token_serializer,
+        auth_header=request.headers.get("Authorization", ""),
+        query_token=request.args.get("token"),
+        max_age=AUTH_TOKEN_MAX_AGE,
+    )
 
 
 def auth_required(fn):
@@ -307,20 +245,11 @@ def auth_login():
     if not username or not password:
         return jsonify({"code": 400, "message": "请输入用户名和密码", "data": None}), 400
 
-    with sqlite3.connect(get_db_path()) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM local_admins WHERE username = ?", (username,))
-        admin = cursor.fetchone()
-
-    if not admin or not check_password_hash(admin["password_hash"], password):
+    admin = local_auth.get_admin_by_username(get_db_path(), username)
+    if not local_auth.verify_admin(admin, password):
         return jsonify({"code": 401, "message": "用户名或密码错误", "data": None}), 401
 
-    user = {
-        "id": admin["id"],
-        "username": admin["username"],
-        "displayName": admin["display_name"],
-    }
+    user = local_auth.public_user(admin)
     return jsonify({"code": 200, "message": "登录成功", "data": {"token": create_auth_token(admin), "user": user}})
 
 
