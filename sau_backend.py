@@ -59,6 +59,7 @@ from backend_app.modules.idea_radar.service import get_status as get_idea_radar_
 from backend_app.modules.idea_radar.service import start_pipeline_task
 from backend_app.modules.idea_radar.pipeline import run_pipeline as run_idea_radar_pipeline_core
 from backend_app.modules.idea_radar.schemas import transcript_radar_schema
+from backend_app.modules.idea_radar import media as idea_radar_media
 from backend_app.modules.script_generation.prompts import build_identity_script_prompt
 from backend_app.modules.script_generation.schemas import identity_script_schema
 from backend_app.modules.mcp_server.tools import describe_tools as describe_mcp_tools
@@ -67,6 +68,8 @@ from backend_app.modules.own_content_review import repository as own_content_rep
 from backend_app.modules.own_content_review.service import review_published_content
 from backend_app.modules.ai_publish import repository as publish_repository
 from backend_app.modules.ai_publish.service import publish_video as publish_video_service
+from backend_app.modules.accounts import repository as account_repository
+from backend_app.modules.dashboard.service import get_dashboard_stats as dashboard_stats_service
 from conf import BASE_DIR
 from myUtils.login import get_tencent_cookie, douyin_cookie_gen, get_ks_cookie, xiaohongshu_cookie_gen
 from myUtils.postVideo import post_video_tencent, post_video_DouYin, post_video_ks, post_video_xhs
@@ -514,15 +517,7 @@ def ensure_douyin_own_tables():
 
 
 def latest_douyin_cookie_file():
-    with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
-        cursor = conn.cursor()
-        row = cursor.execute('''
-        SELECT filePath FROM user_info
-        WHERE type = 3 AND status = 1
-        ORDER BY id DESC
-        LIMIT 1
-        ''').fetchone()
-        return row[0] if row else None
+    return account_repository.latest_douyin_cookie_file(get_db_path())
 
 
 OWN_DOUYIN_FIELD_ALIASES = {
@@ -1148,19 +1143,7 @@ def update_idea_radar_progress(video_id, stage, percent, message, status="proces
 
 
 def write_netscape_cookie_file(storage_state_path, output_path):
-    data = json.loads(Path(storage_state_path).read_text(encoding="utf-8"))
-    lines = ["# Netscape HTTP Cookie File"]
-    for cookie in data.get("cookies") or []:
-        domain = cookie.get("domain") or ".douyin.com"
-        include_subdomains = "TRUE" if domain.startswith(".") else "FALSE"
-        path = cookie.get("path") or "/"
-        secure = "TRUE" if cookie.get("secure") else "FALSE"
-        expires = int(cookie.get("expires") or 0)
-        lines.append("\t".join([
-            domain, include_subdomains, path, secure, str(max(expires, 0)),
-            cookie.get("name") or "", cookie.get("value") or "",
-        ]))
-    Path(output_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return idea_radar_media.write_netscape_cookie_file(storage_state_path, output_path)
 
 
 def run_streaming_command(command, timeout, on_line=None, idle_timeout=None):
@@ -1257,136 +1240,35 @@ def download_douyin_video_with_ytdlp(video_url, output_dir, cookie_file, progres
 
 
 def download_douyin_video_with_ytdlp(video_url, output_dir, cookie_file, progress_callback=None):
-    from yt_dlp import YoutubeDL
-
-    output_template = str(Path(output_dir) / "source.%(ext)s")
-    ffmpeg_dir = os.environ.get("SAU_FFMPEG_DIR")
-
-    def progress_hook(status):
-        if not progress_callback:
-            return
-        if status.get("status") == "finished":
-            progress_callback(100, "视频下载完成")
-            return
-        if status.get("status") != "downloading":
-            return
-        total = status.get("total_bytes") or status.get("total_bytes_estimate") or 0
-        downloaded = status.get("downloaded_bytes") or 0
-        percent = min(99.0, downloaded * 100 / total) if total else 5.0
-        details = [f"下载 {percent:.1f}%"]
-        speed = str(status.get("_speed_str") or "").strip()
-        eta = str(status.get("_eta_str") or "").strip()
-        if speed and speed != "N/A":
-            details.append(speed)
-        if eta and eta != "N/A":
-            details.append(f"剩余 {eta}")
-        progress_callback(percent, " · ".join(details))
-
-    options = {
-        "noplaylist": True,
-        "quiet": True,
-        "no_warnings": True,
-        "socket_timeout": 20,
-        "retries": 2,
-        "fragment_retries": 2,
-        "merge_output_format": "mp4",
-        "outtmpl": output_template,
-        "progress_hooks": [progress_hook],
-    }
-    if ffmpeg_dir and Path(ffmpeg_dir).exists():
-        options["ffmpeg_location"] = ffmpeg_dir
-    if cookie_file:
-        options["cookiefile"] = str(cookie_file)
-    backend_log(f"yt-dlp in-process ffmpeg dir: {ffmpeg_dir or '<none>'}")
-    with YoutubeDL(options) as downloader:
-        downloader.extract_info(video_url, download=True)
-    candidates = sorted(
-        (path for path in Path(output_dir).glob("source.*") if path.is_file()),
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
+    return idea_radar_media.download_with_ytdlp(
+        video_url,
+        output_dir,
+        cookie_file,
+        progress_callback=progress_callback,
+        log=backend_log,
     )
-    if not candidates:
-        raise RuntimeError("yt-dlp 下载完成但没有找到视频文件")
-    return candidates[0]
 
 
 async def download_douyin_video_with_playwright(
     video_url, output_path, storage_state_path=None, progress_callback=None
 ):
-    from playwright.async_api import async_playwright
-
-    async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(headless=True)
-        kwargs = {
-            "viewport": {"width": 1280, "height": 900},
-            "locale": "zh-CN",
-            "user_agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36"
-            ),
-        }
-        if storage_state_path and Path(storage_state_path).exists():
-            kwargs["storage_state"] = str(storage_state_path)
-        context = await browser.new_context(**kwargs)
-        page = await context.new_page()
-        media_urls = []
-
-        def capture_response(response):
-            content_type = (response.headers.get("content-type") or "").lower()
-            if "video/" in content_type or ".mp4" in response.url:
-                media_urls.append(response.url)
-
-        page.on("response", capture_response)
-        if progress_callback:
-            progress_callback(15, "备用下载：正在打开作品页")
-        await page.goto(video_url, wait_until="domcontentloaded", timeout=60000)
-        await page.wait_for_timeout(7000)
-        current_src = await page.evaluate(
-            "() => document.querySelector('video')?.currentSrc || document.querySelector('video')?.src || ''"
-        )
-        media_url = current_src or (media_urls[-1] if media_urls else "")
-        if not media_url:
-            await context.close()
-            await browser.close()
-            raise RuntimeError("作品页没有发现可下载的视频媒体地址")
-        if progress_callback:
-            progress_callback(45, "备用下载：已找到视频地址")
-        response = await context.request.get(media_url, headers={"Referer": video_url}, timeout=120000)
-        if not response.ok:
-            raise RuntimeError(f"媒体下载失败: HTTP {response.status}")
-        Path(output_path).write_bytes(await response.body())
-        if progress_callback:
-            progress_callback(100, "备用方式下载完成")
-        await context.close()
-        await browser.close()
-    return Path(output_path)
+    return await idea_radar_media.download_with_playwright(
+        video_url,
+        output_path,
+        storage_state_path=storage_state_path,
+        progress_callback=progress_callback,
+    )
 
 
 def download_douyin_video(video_url, work_dir, progress_callback=None):
-    cookie_name = latest_douyin_cookie_file()
-    storage_state = Path(BASE_DIR / "cookiesFile" / cookie_name) if cookie_name else None
-    netscape_cookie = Path(work_dir) / "cookies.txt"
-    if storage_state and storage_state.exists():
-        write_netscape_cookie_file(storage_state, netscape_cookie)
-    try:
-        if progress_callback:
-            progress_callback(2, "正在使用 yt-dlp 获取视频")
-        return download_douyin_video_with_ytdlp(
-            video_url, work_dir, netscape_cookie if netscape_cookie.exists() else None,
-            progress_callback=progress_callback,
-        )
-    except Exception as primary_error:
-        fallback_path = Path(work_dir) / "source-playwright.mp4"
-        try:
-            if progress_callback:
-                progress_callback(5, "主下载方式失败，正在切换备用方式")
-            return asyncio.run(download_douyin_video_with_playwright(
-                video_url, fallback_path, storage_state, progress_callback=progress_callback
-            ))
-        except Exception as fallback_error:
-            raise RuntimeError(
-                f"yt-dlp: {primary_error}; Playwright: {fallback_error}"
-            ) from fallback_error
+    return idea_radar_media.download_douyin_video(
+        video_url,
+        work_dir,
+        base_dir=BASE_DIR,
+        latest_cookie_file=latest_douyin_cookie_file,
+        progress_callback=progress_callback,
+        log=backend_log,
+    )
 
 
 def transcribe_idea_radar_media(media_path, progress_callback=None):
@@ -1422,72 +1304,15 @@ def transcribe_idea_radar_media(media_path, progress_callback=None):
 
 
 def transcribe_idea_radar_media(media_path, progress_callback=None):
-    model = os.environ.get("IDEA_RADAR_WHISPER_MODEL", "base")
-    language = "zh"
-    device = os.environ.get("IDEA_RADAR_WHISPER_DEVICE", "cpu")
-    compute_type = os.environ.get("IDEA_RADAR_WHISPER_COMPUTE_TYPE", "int8")
-    media_path = Path(media_path)
-    if not media_path.exists():
-        raise FileNotFoundError(media_path)
-
-    try:
-        from faster_whisper import WhisperModel
-    except ModuleNotFoundError as exc:
-        raise RuntimeError("Missing faster-whisper dependency for local transcription") from exc
-
-    if progress_callback:
-        progress_callback(0, "正在启动本地语音识别")
-        progress_callback(2, f"正在加载 Whisper {model} 模型")
-    backend_log(f"loading faster-whisper model={model} device={device} compute_type={compute_type}")
-    whisper_model = WhisperModel(model, device=device, compute_type=compute_type)
-    if progress_callback:
-        progress_callback(5, "模型加载完成，正在读取音视频")
-
-    segments, info = whisper_model.transcribe(
-        str(media_path),
-        language=language,
-        vad_filter=True,
-        beam_size=5,
+    return idea_radar_media.transcribe_media(
+        media_path,
+        progress_callback=progress_callback,
+        log=backend_log,
     )
-    items = []
-    text_parts = []
-    duration = float(getattr(info, "duration", 0) or 0)
-    last_reported = -1
-    for segment in segments:
-        text = (segment.text or "").strip()
-        if not text:
-            continue
-        text_parts.append(text)
-        items.append({
-            "start": round(float(segment.start or 0), 3),
-            "end": round(float(segment.end or 0), 3),
-            "text": text,
-        })
-        position = float(segment.end or 0)
-        percent = min(99, (position / duration * 100)) if duration else 0
-        if progress_callback and int(percent) > last_reported:
-            last_reported = int(percent)
-            progress_callback(percent, f"已识别到 {int(position)} 秒", {
-                "position": round(position, 3),
-                "duration": round(duration, 3),
-            })
-
-    if progress_callback:
-        progress_callback(100, "视频文案识别完成")
-    return {
-        "engine": "faster-whisper",
-        "language": getattr(info, "language", language),
-        "duration": round(duration, 3),
-        "text": "".join(text_parts).strip(),
-        "segments": items,
-    }, model
 
 
 def clean_transcript_text(text):
-    value = re.sub(r"[ \t]+", " ", str(text or ""))
-    value = re.sub(r"\s*\n\s*", "\n", value)
-    value = re.sub(r"([。！？!?，,])\1+", r"\1", value)
-    return value.strip()
+    return idea_radar_media.clean_transcript_text(text)
 
 
 def parse_metric_number(value):
@@ -1787,17 +1612,11 @@ def save_publish_record(platform_type, title, tags, file_list, account_list, sta
 
 
 def validate_account_files_for_platform(platform_type, account_list):
-    with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
-        cursor = conn.cursor()
-        for account_file in account_list or []:
-            row = cursor.execute(
-                "SELECT type, userName FROM user_info WHERE filePath = ?",
-                (account_file,)
-            ).fetchone()
-            if not row:
-                raise ValueError(f"账号不存在或未登录: {account_file}")
-            if int(row[0]) != int(platform_type):
-                raise ValueError(f"账号 {row[1]} 不属于当前发布平台，请重新选择账号")
+    return account_repository.validate_account_files_for_platform(
+        get_db_path(),
+        platform_type,
+        account_list,
+    )
 
 
 def publish_video_payload(payload):
@@ -2052,11 +1871,7 @@ def update_account_follower():
         if not account_id or follower_count is None:
             return jsonify({"code": 400, "msg": "缺少账号ID或粉丝数"}), 400
 
-        with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
-            cursor = conn.cursor()
-            cursor.execute("UPDATE user_info SET follower_count = ? WHERE id = ?",
-                          (int(follower_count), account_id))
-            conn.commit()
+        account_repository.update_follower_count(get_db_path(), account_id, follower_count)
 
         return jsonify({"code": 200, "msg": "更新成功"}), 200
     except Exception as e:
@@ -2067,16 +1882,7 @@ def update_account_follower():
 def get_account_followers():
     """获取所有账号的粉丝数"""
     try:
-        with sqlite3.connect(Path(BASE_DIR / "db" / "database.db")) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, userName, type, follower_count, status FROM user_info ORDER BY id")
-            accounts = []
-            for row in cursor.fetchall():
-                d = dict(row)
-                d['follower_count'] = d.get('follower_count') or 0
-                accounts.append(d)
-
+        accounts = account_repository.list_followers(get_db_path())
         return jsonify({"code": 200, "msg": "success", "data": accounts}), 200
     except Exception as e:
         return jsonify({"code": 500, "msg": str(e), "data": None}), 500
@@ -2086,132 +1892,12 @@ def get_account_followers():
 def get_dashboard_stats():
     try:
         ensure_publish_records_table()
-        db_path = Path(BASE_DIR / "db" / "database.db")
-
-        def scalar(cursor, sql, params=()):
-            cursor.execute(sql, params)
-            row = cursor.fetchone()
-            return row[0] if row else 0
-
-        with sqlite3.connect(db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-
-            account_total = scalar(cursor, "SELECT COUNT(*) FROM user_info")
-            account_normal = scalar(cursor, "SELECT COUNT(*) FROM user_info WHERE status = 1")
-            account_abnormal = account_total - account_normal
-
-            # 流量统计
-            total_views = scalar(cursor, "SELECT COALESCE(SUM(views), 0) FROM publish_records WHERE status = 'success'")
-            total_likes = scalar(cursor, "SELECT COALESCE(SUM(likes), 0) FROM publish_records WHERE status = 'success'")
-            publish_success_count = scalar(cursor, "SELECT COUNT(*) FROM publish_records WHERE status = 'success'")
-
-            cursor.execute("SELECT type, COUNT(*) AS count FROM user_info GROUP BY type")
-            platform_counts = {str(row["type"]): row["count"] for row in cursor.fetchall()}
-            active_platform_total = sum(1 for count in platform_counts.values() if count > 0)
-
-            task_total = scalar(cursor, "SELECT COUNT(*) FROM publish_records")
-            publish_success = scalar(cursor, "SELECT COUNT(*) FROM publish_records WHERE status = 'success'")
-            publish_failed = scalar(cursor, "SELECT COUNT(*) FROM publish_records WHERE status = 'failed'")
-            task_completed = publish_success
-            task_failed = publish_failed
-            task_in_progress = scalar(
-                cursor,
-                "SELECT COUNT(*) FROM publish_records WHERE status NOT IN ('success', 'failed')",
-            )
-
-            cursor.execute("SELECT file_path FROM file_records")
-            material_files = {row["file_path"] for row in cursor.fetchall() if row["file_path"]}
-            cursor.execute("SELECT file_list FROM publish_records WHERE status = 'success'")
-            published_files = set()
-            for row in cursor.fetchall():
-                try:
-                    published_files.update(json.loads(row["file_list"] or "[]"))
-                except Exception:
-                    continue
-            content_total = len(material_files | published_files)
-            published_content = len(published_files)
-            draft_content = len(material_files - published_files)
-
-            # 总流量合计（用于首页统计卡片）
-            publish_success_count = scalar(cursor, "SELECT COUNT(*) FROM publish_records WHERE status = 'success'")
-
-            platform_names = {
-                1: "小红书",
-                2: "视频号",
-                3: "抖音",
-                4: "快手",
-            }
-            status_names = {
-                "success": "已完成",
-                "failed": "已失败",
-                "pending": "待执行",
-                "running": "进行中",
-            }
-            recent_tasks = []
-            cursor.execute("SELECT filePath, userName FROM user_info")
-            account_names = {row["filePath"]: row["userName"] for row in cursor.fetchall()}
-
-            cursor.execute(
-                """
-                SELECT id, platform_type, title, status, created_at, account_list
-                FROM publish_records
-                ORDER BY id DESC
-                LIMIT 5
-                """
-            )
-            for row in cursor.fetchall():
-                try:
-                    accounts = json.loads(row["account_list"] or "[]")
-                except Exception:
-                    accounts = []
-                account_label = "、".join(account_names.get(account, account) for account in accounts)
-                recent_tasks.append(
-                    {
-                        "id": row["id"],
-                        "title": row["title"] or "未命名发布任务",
-                        "platform": platform_names.get(row["platform_type"], "未知"),
-                        "account": account_label if account_label else "-",
-                        "createTime": row["created_at"],
-                        "status": status_names.get(row["status"], row["status"]),
-                    }
-                )
-
+        data = dashboard_stats_service(get_db_path())
         return jsonify(
             {
                 "code": 200,
                 "msg": "success",
-                "data": {
-                    "accountStats": {
-                        "total": account_total,
-                        "normal": account_normal,
-                        "abnormal": account_abnormal,
-                    },
-                    "platformStats": {
-                        "total": active_platform_total,
-                        "kuaishou": platform_counts.get("4", 0),
-                        "douyin": platform_counts.get("3", 0),
-                        "channels": platform_counts.get("2", 0),
-                        "xiaohongshu": platform_counts.get("1", 0),
-                    },
-                    "taskStats": {
-                        "total": task_total,
-                        "completed": task_completed,
-                        "inProgress": task_in_progress,
-                        "failed": task_failed,
-                    },
-                    "contentStats": {
-                        "total": content_total,
-                        "published": published_content,
-                        "draft": draft_content,
-                    },
-                    "trafficStats": {
-                        "total_views": total_views,
-                        "total_likes": total_likes,
-                        "publish_count": publish_success_count,
-                    },
-                    "recentTasks": recent_tasks,
-                },
+                "data": data,
             }
         ), 200
     except Exception as e:
