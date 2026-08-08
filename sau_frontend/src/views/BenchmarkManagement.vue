@@ -21,6 +21,82 @@
       </el-form>
     </el-card>
 
+    <el-card shadow="never" class="auto-card">
+      <template #header>
+        <div class="card-header">
+          <span>自动找对标</span>
+          <el-button type="primary" :loading="autoDiscovering" @click="autoDiscoverAccounts">
+            开始寻找并同步
+          </el-button>
+        </div>
+      </template>
+      <el-form label-width="100px">
+        <el-form-item label="对标关键词">
+          <el-input
+            v-model="autoKeywords"
+            type="textarea"
+            :rows="3"
+            placeholder="例如：AI 自媒体、知识付费、个人IP。多个关键词用逗号或换行分隔"
+          />
+        </el-form-item>
+        <div class="auto-options">
+          <el-form-item label="找账号数">
+            <el-input-number v-model="autoLimit" :min="1" :max="20" />
+          </el-form-item>
+          <el-form-item label="每号作品数">
+            <el-input-number v-model="autoMaxVideos" :min="1" :max="30" />
+          </el-form-item>
+        </div>
+      </el-form>
+      <el-alert
+        v-if="autoResult"
+        :title="`找到 ${autoResult.summary?.found || 0} 个账号，成功同步 ${autoResult.summary?.synced || 0} 个，作品链接 ${autoResult.summary?.videoLinks || 0} 条，失败 ${autoResult.summary?.failed || 0} 个`"
+        type="success"
+        show-icon
+        :closable="false"
+      />
+      <el-table
+        v-if="autoResult?.synced?.length"
+        :data="autoResult.synced"
+        class="auto-results"
+        style="width: 100%"
+      >
+        <el-table-column label="搜索到的账号" min-width="180">
+          <template #default="scope">
+            <div class="auto-account-name">{{ scope.row.nickname || '未识别账号' }}</div>
+            <el-link :href="scope.row.homepage_url" target="_blank" type="primary">
+              打开主页
+            </el-link>
+          </template>
+        </el-table-column>
+        <el-table-column label="已同步内容" min-width="420">
+          <template #default="scope">
+            <div v-if="scope.row.videos?.length" class="content-links">
+              <el-link
+                v-for="(video, index) in scope.row.videos.slice(0, 5)"
+                :key="video.id || video.video_url"
+                :href="video.video_url"
+                target="_blank"
+                type="primary"
+                class="content-link"
+              >
+                {{ video.title || `作品 ${index + 1}` }}
+              </el-link>
+              <span v-if="scope.row.videos.length > 5" class="more-count">
+                另有 {{ scope.row.videos.length - 5 }} 条
+              </span>
+            </div>
+            <span v-else class="empty-content">
+              {{ scope.row.contentLoadFailed ? '内容链接读取失败' : '暂未同步到内容链接' }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="链接数" width="90" align="center">
+          <template #default="scope">{{ scope.row.videos?.length || 0 }}</template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
@@ -43,8 +119,9 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="followers_count" label="粉丝" width="140" />
-        <el-table-column prop="likes_count" label="获赞" width="140" />
+        <el-table-column prop="followers_count" label="关注人" width="140" />
+        <el-table-column prop="likes_count" label="粉丝" width="140" />
+        <el-table-column prop="received_likes_count" label="获赞" width="140" />
         <el-table-column prop="video_count" label="作品" width="140" />
         <el-table-column prop="synced_video_count" label="已同步作品" width="120" />
         <el-table-column label="状态" width="120">
@@ -56,13 +133,22 @@
         </el-table-column>
         <el-table-column prop="last_sync_at" label="最近同步" width="180" />
         <el-table-column prop="error_message" label="错误" min-width="180" show-overflow-tooltip />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="250" fixed="right">
           <template #default="scope">
             <el-button size="small" @click="loadVideos(scope.row)">
               {{ selectedAccount?.id === scope.row.id ? '收起' : '作品' }}
             </el-button>
             <el-button size="small" type="primary" :loading="syncingId === scope.row.id" @click="syncAccount(scope.row)">
               同步
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              plain
+              :loading="deletingId === scope.row.id"
+              @click="deleteAccount(scope.row)"
+            >
+              删除
             </el-button>
           </template>
         </el-table-column>
@@ -251,13 +337,19 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { benchmarkApi } from '@/api/benchmark'
 
 const homepageUrl = ref('')
+const autoKeywords = ref('')
+const autoLimit = ref(5)
+const autoMaxVideos = ref(10)
+const autoDiscovering = ref(false)
+const autoResult = ref(null)
 const loading = ref(false)
 const adding = ref(false)
 const syncingId = ref(null)
+const deletingId = ref(null)
 const accounts = ref([])
 const selectedAccount = ref(null)
 const videos = ref([])
@@ -313,6 +405,46 @@ const addAccount = async () => {
   }
 }
 
+const autoDiscoverAccounts = async () => {
+  if (!autoKeywords.value.trim()) {
+    ElMessage.warning('请先填写对标关键词')
+    return
+  }
+  autoDiscovering.value = true
+  autoResult.value = null
+  try {
+    const response = await benchmarkApi.autoDiscoverDouyinAccounts({
+      keywords: autoKeywords.value,
+      limit: autoLimit.value,
+      maxVideos: autoMaxVideos.value
+    })
+    const result = response.data || {}
+    const syncedAccounts = await Promise.all((result.synced || []).map(async (account) => {
+      try {
+        const videoResponse = await benchmarkApi.getDouyinVideos(account.id)
+        return { ...account, videos: videoResponse.data || [] }
+      } catch (error) {
+        console.error(`读取账号 ${account.id} 的作品失败:`, error)
+        return { ...account, videos: [], contentLoadFailed: true }
+      }
+    }))
+    const videoLinks = syncedAccounts.reduce((total, account) => total + account.videos.length, 0)
+    autoResult.value = {
+      ...result,
+      synced: syncedAccounts,
+      summary: { ...(result.summary || {}), videoLinks }
+    }
+    const summary = autoResult.value.summary || {}
+    ElMessage.success(`自动同步完成：${summary.synced || 0} 个账号，${summary.videoLinks || 0} 条作品链接`)
+    await fetchAccounts()
+  } catch (error) {
+    console.error('自动找对标失败:', error)
+    ElMessage.error('自动找对标失败')
+  } finally {
+    autoDiscovering.value = false
+  }
+}
+
 const syncAccount = async (account) => {
   syncingId.value = account.id
   try {
@@ -329,6 +461,46 @@ const syncAccount = async (account) => {
     await fetchAccounts()
   } finally {
     syncingId.value = null
+  }
+}
+
+const deleteAccount = async (account) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除“${account.nickname || '该对标账号'}”吗？同时会清空其 ${account.synced_video_count || 0} 条作品以及相关拆解和观点雷达记录。`,
+      '删除对标',
+      {
+        confirmButtonText: '删除并清空作品',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+  } catch (action) {
+    if (action === 'cancel' || action === 'close') return
+    throw action
+  }
+
+  deletingId.value = account.id
+  try {
+    const response = await benchmarkApi.deleteDouyinAccount(account.id)
+    const result = response.data || {}
+    if (selectedAccount.value?.id === account.id) {
+      selectedAccount.value = null
+      videos.value = []
+      selectedVideo.value = null
+      videoAnalysis.value = null
+      analysisDrawerVisible.value = false
+    }
+    if (autoResult.value?.synced) {
+      autoResult.value.synced = autoResult.value.synced.filter((item) => item.id !== account.id)
+    }
+    await fetchAccounts()
+    ElMessage.success(`已删除对标并清空 ${result.deleted_videos || 0} 条作品`)
+  } catch (error) {
+    console.error('删除对标失败:', error)
+    ElMessage.error('删除对标失败')
+  } finally {
+    deletingId.value = null
   }
 }
 
@@ -407,6 +579,7 @@ onMounted(fetchAccounts)
   }
 
   .add-card,
+  .auto-card,
   .videos-card {
     margin-bottom: 16px;
   }
@@ -421,6 +594,48 @@ onMounted(fetchAccounts)
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .auto-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .auto-results {
+    margin-top: 12px;
+  }
+
+  .auto-account-name {
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  .content-links {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 6px 0;
+  }
+
+  .content-link {
+    display: block;
+    max-width: 100%;
+
+    :deep(.el-link__inner) {
+      display: block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .more-count,
+  .empty-content {
+    color: #909399;
+    font-size: 13px;
   }
 
   .account-cell {

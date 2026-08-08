@@ -11,7 +11,13 @@ def make_client(tmp_path):
     store = KouboStore(Path(tmp_path) / "koubo.db")
     store.initialize()
     app = Flask(__name__)
-    app.register_blueprint(create_koubo_blueprint(store, Path(tmp_path) / "files"))
+    app.register_blueprint(
+        create_koubo_blueprint(
+            store,
+            Path(tmp_path) / "files",
+            allow_unsafe_dev_admin=True,
+        )
+    )
     app.testing = True
     return app.test_client(), store
 
@@ -190,6 +196,17 @@ def test_admin_token_protects_control_plane(tmp_path):
         "/api/koubo/projects", headers={"Authorization": "Bearer secret"}
     )
     assert authorized.status_code == 200
+
+
+def test_admin_token_is_required_by_default(tmp_path):
+    store = KouboStore(Path(tmp_path) / "secure-default.db")
+    store.initialize()
+    app = Flask(__name__)
+    app.register_blueprint(create_koubo_blueprint(store, Path(tmp_path) / "secure-default-files"))
+    app.testing = True
+    client = app.test_client()
+
+    assert client.get("/api/koubo/projects").status_code == 503
 
 
 def test_binding_code_locks_device_type_and_admin_can_revoke(tmp_path):

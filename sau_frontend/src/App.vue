@@ -1,11 +1,12 @@
 <template>
-  <el-container class="app-shell">
+  <router-view v-if="isLoginPage" />
+  <el-container v-else class="app-shell">
     <el-aside :width="isCollapse ? '72px' : '248px'" class="app-sidebar">
       <div class="brand">
         <div class="brand-mark">S</div>
         <div v-show="!isCollapse" class="brand-copy">
           <strong>Sunbird OS</strong>
-          <span>内容增长判断台</span>
+          <span>本地内容运营工作台</span>
         </div>
       </div>
 
@@ -21,7 +22,7 @@
         </el-menu-item>
         <el-menu-item index="/benchmark-management">
           <el-icon><Aim /></el-icon>
-          <template #title>对标库</template>
+          <template #title>对标内容库</template>
         </el-menu-item>
         <el-menu-item index="/idea-radar">
           <el-icon><DataAnalysis /></el-icon>
@@ -51,6 +52,10 @@
           <el-icon><PieChart /></el-icon>
           <template #title>数据明细</template>
         </el-menu-item>
+        <el-menu-item index="/agent-models">
+          <el-icon><Setting /></el-icon>
+          <template #title>Agent 模型</template>
+        </el-menu-item>
       </el-menu>
 
       <div v-show="!isCollapse" class="sidebar-note">
@@ -71,6 +76,7 @@
         <div class="topbar-actions">
           <el-button text :icon="Refresh">同步数据</el-button>
           <el-button type="primary" :icon="Plus">新建复盘</el-button>
+          <el-button text :icon="SwitchButton" @click="logout">退出</el-button>
         </div>
       </el-header>
 
@@ -83,7 +89,8 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useUserStore } from '@/stores'
 import {
   Aim,
   DataAnalysis,
@@ -93,6 +100,8 @@ import {
   PieChart,
   Plus,
   Refresh,
+  Setting,
+  SwitchButton,
   TrendCharts,
   Upload,
   User,
@@ -100,6 +109,8 @@ import {
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
 const isCollapse = ref(false)
 
 const pageMeta = {
@@ -111,14 +122,21 @@ const pageMeta = {
   '/koubo-studio': { kicker: 'Koubo Studio', title: '口播生产工作台' },
   '/publish-center': { kicker: 'Publish', title: '发布中心' },
   '/account-management': { kicker: 'Accounts', title: '账号管理' },
-  '/data': { kicker: 'Data', title: '数据明细' }
+  '/data': { kicker: 'Data', title: '数据明细' },
+  '/agent-models': { kicker: 'Settings', title: 'Agent 模型' }
 }
 
 const activeMenu = computed(() => route.path)
 const routeMeta = computed(() => pageMeta[route.path] || pageMeta['/'])
+const isLoginPage = computed(() => route.path === '/login')
 
 const toggleSidebar = () => {
   isCollapse.value = !isCollapse.value
+}
+
+const logout = () => {
+  userStore.logout()
+  router.replace('/login')
 }
 </script>
 

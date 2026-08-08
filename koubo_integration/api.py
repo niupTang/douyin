@@ -21,7 +21,7 @@ def bearer_token():
     return value[7:].strip() if value.startswith("Bearer ") else ""
 
 
-def create_koubo_blueprint(store, storage_root=None, admin_token=None):
+def create_koubo_blueprint(store, storage_root=None, admin_token=None, allow_unsafe_dev_admin=False):
     blueprint = Blueprint("koubo", __name__, url_prefix="/api/koubo")
     storage_root = Path(
         storage_root
@@ -45,7 +45,11 @@ def create_koubo_blueprint(store, storage_root=None, admin_token=None):
         @wraps(handler)
         def wrapped(*args, **kwargs):
             supplied = bearer_token() or request.args.get("token", "")
-            if admin_token and not hmac.compare_digest(supplied, admin_token):
+            if not admin_token:
+                if allow_unsafe_dev_admin:
+                    return handler(*args, **kwargs)
+                return response(message="未配置口播管理员令牌", status=503)
+            if not hmac.compare_digest(supplied, admin_token):
                 return response(message="管理员令牌无效", status=401)
             return handler(*args, **kwargs)
         return wrapped

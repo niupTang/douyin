@@ -4,10 +4,22 @@ import sys
 from pathlib import Path
 
 
+def emit_progress(percent, message, position=0, duration=0):
+    print(json.dumps({
+        "type": "progress",
+        "percent": round(float(percent or 0), 1),
+        "message": message,
+        "position": round(float(position or 0), 3),
+        "duration": round(float(duration or 0), 3),
+    }, ensure_ascii=False), flush=True)
+
+
 def transcribe_with_faster_whisper(media_path, model_name, language, device, compute_type):
     from faster_whisper import WhisperModel
 
+    emit_progress(2, f"正在加载 Whisper {model_name} 模型")
     model = WhisperModel(model_name, device=device, compute_type=compute_type)
+    emit_progress(5, "模型加载完成，正在读取音频")
     segments, info = model.transcribe(
         str(media_path),
         language=language or None,
@@ -16,6 +28,8 @@ def transcribe_with_faster_whisper(media_path, model_name, language, device, com
     )
     items = []
     text_parts = []
+    duration = float(getattr(info, "duration", 0) or 0)
+    last_reported = -1
     for segment in segments:
         text = (segment.text or "").strip()
         if not text:
@@ -26,6 +40,11 @@ def transcribe_with_faster_whisper(media_path, model_name, language, device, com
             "end": round(float(segment.end or 0), 3),
             "text": text,
         })
+        position = float(segment.end or 0)
+        percent = min(99, (position / duration * 100)) if duration else 0
+        if int(percent) > last_reported:
+            last_reported = int(percent)
+            emit_progress(percent, f"已识别到 {int(position)} 秒", position, duration)
     return {
         "engine": "faster-whisper",
         "language": getattr(info, "language", language),
@@ -38,7 +57,9 @@ def transcribe_with_faster_whisper(media_path, model_name, language, device, com
 def transcribe_with_openai_whisper(media_path, model_name, language):
     import whisper
 
+    emit_progress(2, f"正在加载 Whisper {model_name} 模型")
     model = whisper.load_model(model_name)
+    emit_progress(8, "模型加载完成，正在识别音频")
     result = model.transcribe(str(media_path), language=language or None, fp16=False)
     segments = []
     for segment in result.get("segments", []) or []:
@@ -76,6 +97,7 @@ def main():
         }, ensure_ascii=False))
 
     try:
+      emit_progress(0, "正在启动本地语音识别")
       try:
           result = transcribe_with_faster_whisper(
               media_path,
@@ -90,6 +112,7 @@ def main():
               model_name=args.model,
               language=args.language,
           )
+      emit_progress(100, "视频文案识别完成", result.get("duration") or 0, result.get("duration") or 0)
       print(json.dumps({"ok": True, "data": result}, ensure_ascii=False))
     except Exception as exc:
       print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False))

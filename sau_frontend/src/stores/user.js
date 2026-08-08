@@ -3,21 +3,29 @@ import { ref } from 'vue'
 
 export const useUserStore = defineStore('user', () => {
   const userInfo = ref({
-    name: '',
-    email: ''
+    id: '',
+    username: '',
+    displayName: ''
   })
   
-  const isLoggedIn = ref(false)
+  const isLoggedIn = ref(Boolean(localStorage.getItem('token')))
   
-  const setUserInfo = (info) => {
+  const setUserInfo = (info = {}) => {
     userInfo.value = info
     isLoggedIn.value = true
   }
+
+  const setSession = ({ token, user }) => {
+    localStorage.setItem('token', token)
+    setUserInfo(user)
+  }
   
   const logout = () => {
+    localStorage.removeItem('token')
     userInfo.value = {
-      name: '',
-      email: ''
+      id: '',
+      username: '',
+      displayName: ''
     }
     isLoggedIn.value = false
   }
@@ -26,6 +34,7 @@ export const useUserStore = defineStore('user', () => {
     userInfo,
     isLoggedIn,
     setUserInfo,
+    setSession,
     logout
   }
 })

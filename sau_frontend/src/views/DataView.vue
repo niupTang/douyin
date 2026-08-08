@@ -188,7 +188,7 @@ const stats = computed(() => {
 
 const platformName = (type) => {
   const map = { 1: '小红书', 2: '视频号', 3: '抖音', 4: '快手' }
-  return map[Number(type)] || 
+  return map[Number(type)] || '未知平台'
 }
 
 // 账号列表缓存：account_list 存的是 filePath（cookie JSON 文件名），需要转成 userName

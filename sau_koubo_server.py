@@ -8,10 +8,11 @@ for stream in (sys.stdout, sys.stderr):
 
 from conf import BASE_DIR
 from koubo_integration import KouboStore, create_koubo_blueprint, register_realtime
-from sau_backend import app
+from sau_backend import app, ensure_core_tables
 
 
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024 * 1024
+ensure_core_tables()
 koubo_store = KouboStore(
     Path(os.environ.get("KOUBO_DATABASE_PATH") or BASE_DIR / "db" / "database.db")
 )
@@ -20,11 +21,14 @@ app.register_blueprint(
     create_koubo_blueprint(
         koubo_store,
         Path(os.environ.get("KOUBO_STORAGE_ROOT") or BASE_DIR / "koubo_data"),
-        os.environ.get("KOUBO_ADMIN_TOKEN"),
+        os.environ.get("KOUBO_ADMIN_TOKEN") or os.environ.get("SAU_INSTANCE_TOKEN"),
     )
 )
 register_realtime(app, koubo_store)
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5409)
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("SAU_BACKEND_PORT", "5409")),
+    )
