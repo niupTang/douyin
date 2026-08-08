@@ -216,6 +216,98 @@ def get_analysis(db_path, video_id):
     return dict(row) if row else None
 
 
+def save_analysis(db_path, video_id, analysis):
+    ensure_tables(db_path)
+    with sqlite3.connect(Path(db_path)) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+        INSERT INTO douyin_benchmark_video_analysis
+            (video_id, analysis_type, summary, hook, core_viewpoint, pain_points,
+             viral_points, reusable_points, script_suggestions, raw_analysis)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(video_id) DO UPDATE SET
+            analysis_type = excluded.analysis_type,
+            summary = excluded.summary,
+            hook = excluded.hook,
+            core_viewpoint = excluded.core_viewpoint,
+            pain_points = excluded.pain_points,
+            viral_points = excluded.viral_points,
+            reusable_points = excluded.reusable_points,
+            script_suggestions = excluded.script_suggestions,
+            raw_analysis = excluded.raw_analysis,
+            updated_at = CURRENT_TIMESTAMP
+        ''', (
+            video_id,
+            analysis.get("analysis_type") or "metadata",
+            analysis.get("summary"),
+            analysis.get("hook"),
+            analysis.get("core_viewpoint"),
+            json.dumps(analysis.get("pain_points") or [], ensure_ascii=False),
+            json.dumps(analysis.get("viral_points") or [], ensure_ascii=False),
+            json.dumps(analysis.get("reusable_points") or [], ensure_ascii=False),
+            json.dumps(analysis.get("script_suggestions") or [], ensure_ascii=False),
+            json.dumps(analysis, ensure_ascii=False),
+        ))
+        conn.commit()
+
+
+def delete_account_cascade(db_path, account_id):
+    ensure_tables(db_path)
+    with connect(db_path) as conn:
+        account = conn.execute(
+            "SELECT id, nickname, homepage_url FROM douyin_benchmark_accounts WHERE id = ?",
+            (account_id,),
+        ).fetchone()
+        if not account:
+            return None
+        video_ids = [
+            row[0] for row in conn.execute(
+                "SELECT id FROM douyin_benchmark_videos WHERE account_id = ?",
+                (account_id,),
+            ).fetchall()
+        ]
+
+    with sqlite3.connect(Path(db_path)) as conn:
+        cursor = conn.cursor()
+        cursor.execute("BEGIN IMMEDIATE")
+        cursor.execute('''
+            DELETE FROM douyin_benchmark_video_analysis
+            WHERE video_id IN (
+                SELECT id FROM douyin_benchmark_videos WHERE account_id = ?
+            )
+        ''', (account_id,))
+        analysis_count = max(cursor.rowcount, 0)
+        cursor.execute('''
+            DELETE FROM douyin_benchmark_video_transcripts
+            WHERE video_id IN (
+                SELECT id FROM douyin_benchmark_videos WHERE account_id = ?
+            )
+        ''', (account_id,))
+        transcript_count = max(cursor.rowcount, 0)
+        cursor.execute(
+            "DELETE FROM douyin_benchmark_videos WHERE account_id = ?",
+            (account_id,),
+        )
+        video_count = max(cursor.rowcount, 0)
+        cursor.execute(
+            "DELETE FROM douyin_benchmark_accounts WHERE id = ?",
+            (account_id,),
+        )
+        account_count = max(cursor.rowcount, 0)
+        conn.commit()
+
+    return {
+        "account": dict(account),
+        "video_ids": video_ids,
+        "deleted": {
+            "accounts": account_count,
+            "videos": video_count,
+            "analysis": analysis_count,
+            "transcripts": transcript_count,
+        },
+    }
+
+
 def save_sync(db_path, account_id, data):
     ensure_tables(db_path)
     with sqlite3.connect(Path(db_path)) as conn:

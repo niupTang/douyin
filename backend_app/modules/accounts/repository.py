@@ -24,6 +24,43 @@ def list_followers(db_path):
     return accounts
 
 
+def list_accounts_raw(db_path):
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute("SELECT * FROM user_info").fetchall()
+    return [list(row) for row in rows]
+
+
+def mark_account_invalid(db_path, account_id):
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("UPDATE user_info SET status = ? WHERE id = ?", (0, account_id))
+        conn.commit()
+
+
+def update_account_info(db_path, account_id, platform_type, username):
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("""
+        UPDATE user_info
+        SET type = ?,
+            userName = ?
+        WHERE id = ?
+        """, (platform_type, username, account_id))
+        conn.commit()
+
+
+def delete_account(db_path, account_id):
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT * FROM user_info WHERE id = ?",
+            (account_id,),
+        ).fetchone()
+        if not row:
+            return None
+        conn.execute("DELETE FROM user_info WHERE id = ?", (account_id,))
+        conn.commit()
+    return dict(row)
+
+
 def validate_account_files_for_platform(db_path, platform_type, account_list):
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
