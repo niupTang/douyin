@@ -221,14 +221,15 @@ class DouYinVideo(object):
     
     async def set_thumbnail(self, page: Page, thumbnail_path: str):
         if thumbnail_path:
-            await page.click('text="选择封面"')
-            await page.wait_for_selector("div.semi-modal-content:visible")
-            await page.click('text="设置竖封面"')
-            await page.wait_for_timeout(2000)  # 等待2秒
-            # 定位到上传区域并点击
-            await page.locator("div[class^='semi-upload upload'] >> input.semi-upload-hidden-input").set_input_files(thumbnail_path)
-            await page.wait_for_timeout(2000)  # 等待2秒
-            await page.locator("div[class^='extractFooter'] button:visible:has-text('完成')").click()
+            try:
+                await page.get_by_text("选择封面", exact=True).last.click(timeout=10000)
+                await page.get_by_role("button", name="设置竖封面").click(timeout=30000)
+                await page.locator("input.semi-upload-hidden-input").last.set_input_files(thumbnail_path)
+                await page.wait_for_timeout(2000)  # 等待2秒
+                await page.locator("button:visible:has-text('完成')").last.click(timeout=30000)
+            except Exception:
+                await page.screenshot(path="logs/douyin-thumbnail-error.png", full_page=True)
+                raise
             # finish_confirm_element = page.locator("div[class^='confirmBtn'] >> div:has-text('完成')")
             # if await finish_confirm_element.count():
             #     await finish_confirm_element.click()

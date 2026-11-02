@@ -26,37 +26,5 @@ export const materialApi = {
   // 获取素材预览URL
   getMaterialPreviewUrl: (filename) => {
     return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5409'}/getFile?filename=${filename}`
-  },
-
-  talkingEdit: (data) => {
-    return http.post('/video/talkingEdit', data)
-  },
-
-  getVideoTasks: () => {
-    return http.get('/video/tasks')
-  },
-
-  oneClickExtract: (data) => {
-    return http.post('/video/oneClick/extract', data)
-  },
-
-  oneClickRewrite: (data) => {
-    return http.post('/video/oneClick/rewrite', data)
-  },
-
-  oneClickTts: (data) => {
-    return http.post('/video/oneClick/tts', data)
-  },
-
-  oneClickAsr: (data) => {
-    return http.post('/video/oneClick/asr', data)
-  },
-
-  oneClickClip: (data) => {
-    return http.post('/video/oneClick/clip', data)
-  },
-
-  oneClickRun: (data) => {
-    return http.post('/video/oneClick/run', data)
   }
 }

@@ -304,19 +304,22 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.studio { color:#18202d; }
+.studio { position:relative; min-height:calc(100vh - 118px); overflow:hidden; color:#18202d; background:radial-gradient(ellipse 70% 55% at 0% 0%, #ffe4e0 0%, #fff8f7 36%, transparent 68%), radial-gradient(ellipse 75% 65% at 100% 100%, #dceaff 0%, #f3f7ff 42%, transparent 75%), linear-gradient(145deg,#fff 0%,#f6f9ff 100%); }
+.studio::before,.studio::after { content:""; position:absolute; pointer-events:none; border:1px solid rgba(255,255,255,.86); border-radius:50%; transform:rotate(-18deg); }
+.studio::before { width:680px; height:300px; left:-160px; top:-130px; }.studio::after { width:780px; height:330px; right:-210px; bottom:-110px; }
+.studio > * { position:relative; z-index:1; }
 .auth-gate { min-height:calc(100vh - 180px); display:grid; place-items:center; padding:40px 20px; }
 .auth-card { width:min(460px,100%); display:grid; gap:18px; padding:38px; border:1px solid #e0e4ea; border-radius:24px; background:#fff; box-shadow:0 24px 80px #0f172a1f; }
 .auth-card > span { color:#a77b08; font-size:12px; font-weight:800; letter-spacing:.18em; }
 .auth-card h1,.auth-card p { margin:0; }
 .auth-card p,.auth-card small { color:#7b8492; line-height:1.7; }
-.hero { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding:28px 30px; border-radius:18px; color:#fff; background:linear-gradient(125deg,#111827,#252019); }
+.hero { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding:28px 30px; border:1px solid rgba(255,255,255,.65); border-radius:18px; color:#18202d; background:rgba(255,255,255,.58); box-shadow:0 16px 40px rgba(73,103,155,.12); backdrop-filter:blur(12px); }
 .hero span { color:#f2c94c; font-size:11px; font-weight:800; letter-spacing:.18em; }
 .hero h1 { margin:8px 0; font-size:30px; }
-.hero p { margin:0; color:#b7bec9; }
+.hero p { margin:0; color:#71809a; }
 .hero-actions { display:flex; gap:10px; }
 .layout { display:grid; grid-template-columns:280px 1fr; gap:18px; margin-top:18px; }
-.project-list,.editor { min-height:600px; border:1px solid #e5e8ed; border-radius:16px; background:#fff; }
+.project-list,.editor { min-height:600px; border:1px solid rgba(220,230,244,.86); border-radius:16px; background:rgba(255,255,255,.74); box-shadow:0 15px 35px rgba(73,103,155,.09); backdrop-filter:blur(14px); }
 .project-list { padding:14px; }
 .section-title { display:flex; justify-content:space-between; padding:8px; }
 .project-list button { display:grid; width:100%; gap:6px; margin-top:6px; border:0; border-radius:12px; padding:14px; text-align:left; background:#f5f7fa; color:#253041; }

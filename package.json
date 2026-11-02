@@ -9,6 +9,7 @@
     "frontend:dev": "npm --prefix sau_frontend run dev",
     "frontend:build": "npm --prefix sau_frontend run build",
     "backend:build": "scripts\\build-backend.bat",
+    "mcp:cli": "python scripts/mcp_cli.py",
     "playwright:bundle": "scripts\\bundle-playwright-browsers.bat",
     "whisper:bundle": "scripts\\bundle-whisper-model.bat",
     "desktop:dev": "cross-env ELECTRON_START_URL=http://localhost:5173 electron .",

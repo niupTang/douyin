@@ -8,7 +8,7 @@ export const useUserStore = defineStore('user', () => {
     displayName: ''
   })
   
-  const isLoggedIn = ref(Boolean(localStorage.getItem('token')))
+  const isLoggedIn = ref(Boolean(localStorage.getItem('token')) && localStorage.getItem('auth_mode') === 'license')
   
   const setUserInfo = (info = {}) => {
     userInfo.value = info
@@ -17,11 +17,13 @@ export const useUserStore = defineStore('user', () => {
 
   const setSession = ({ token, user }) => {
     localStorage.setItem('token', token)
+    localStorage.setItem('auth_mode', 'license')
     setUserInfo(user)
   }
   
   const logout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('auth_mode')
     userInfo.value = {
       id: '',
       username: '',

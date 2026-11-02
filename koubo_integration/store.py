@@ -1,7 +1,7 @@
 import hashlib
 import json
 import secrets
-import sqlite3
+from backend_app.common import sqlite as sqlite3
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone

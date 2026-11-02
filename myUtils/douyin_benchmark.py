@@ -6,8 +6,12 @@ from urllib.parse import quote, urlparse
 
 from playwright.async_api import async_playwright
 
+from backend_app.common.browser_engine import BrowserEngine, BrowserSpec, BrowserStrategyRegistry
 from conf import BASE_DIR
 from utils.base_social_media import set_init_script
+from backend_app.common.browser_engine.shared import on_browser_worker
+from myUtils.douyin_session import resolve_storage_state, session_key
+from backend_app.common.browser_engine.presentation import prepare_floating_launch
 
 
 def launch_options():
@@ -18,24 +22,60 @@ def launch_options():
     return options
 
 
+def collection_browser_spec(storage_state=None):
+    options = launch_options()
+    options.pop("headless", None)
+    headless, options = prepare_floating_launch(options)
+    options["args"] = [arg for arg in options.get("args", [])
+                       if not arg.startswith("--window-size=")]
+    options["args"].append("--window-size=1280,900")
+    context_options = {
+        "viewport": {"width": 1440, "height": 1200},
+        "locale": "zh-CN",
+        "accept_downloads": False,
+        "user_agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/125.0.0.0 Safari/537.36"
+        ),
+    }
+    if storage_state:
+        context_options["storage_state"] = str(storage_state)
+    return BrowserSpec(
+        headless=headless, launch_options=options, context_options=context_options,
+        shared_key=session_key(storage_state),
+    )
+
+
 def douyin_profile_dir():
     path = Path(BASE_DIR) / "cookiesFile" / "douyin_browser_profile"
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-async def open_douyin_login_browser(timeout_ms=600000):
-    """打开可见的持久化浏览器，用户完成扫码/验证后关闭窗口即可。"""
-    options = launch_options()
-    options["headless"] = False
-    async with async_playwright() as playwright:
-        context = await playwright.chromium.launch_persistent_context(
-            str(douyin_profile_dir()), **options, viewport={"width": 1440, "height": 1000}, locale="zh-CN"
+class DouyinInteractiveLoginStrategy:
+    platform = "douyin"
+    operation = "interactive_login"
+
+    def browser_spec(self, request):
+        options = launch_options()
+        options.pop("headless", None)
+        return BrowserSpec(
+            headless=False,
+            launch_options=options,
+            context_options={"viewport": {"width": 1440, "height": 1000}, "locale": "zh-CN"},
+            persistent_profile=str(douyin_profile_dir()),
         )
-        page = context.pages[0] if context.pages else await context.new_page()
+
+    async def execute(self, context, page, request):
         await page.goto("https://www.douyin.com/", wait_until="domcontentloaded", timeout=60000)
-        await page.wait_for_timeout(timeout_ms)
-        await context.close()
+        await page.wait_for_timeout(request["timeout_ms"])
+
+
+async def open_douyin_login_browser(timeout_ms=600000, cookie_file=None):
+    """打开可见的持久化浏览器，用户完成扫码/验证后关闭窗口即可。"""
+    from myUtils.douyin_session import open_preview
+    return await open_preview("https://www.douyin.com/", cookie_file)
 
 
 def normalize_douyin_url(url):
@@ -62,6 +102,21 @@ def parse_count(text, labels):
             if match:
                 return match.group(0)
     return ""
+
+
+def build_profile_counts(profile_stats, raw_text):
+    """将抖音主页 data-e2e 统计项映射到语义明确的数据库字段。"""
+    stats = profile_stats or {}
+    following = stats.get("following") or parse_count(raw_text, ["关注"])
+    followers = stats.get("fans") or parse_count(raw_text, ["粉丝"])
+    received_likes = stats.get("receivedLikes") or parse_count(raw_text, ["获赞", "喜欢"])
+    return {
+        "following_count": following,
+        "followers_count": followers,
+        # likes_count 是旧字段，继续写入获赞值以免旧导出/API 读取到错误的粉丝数。
+        "likes_count": received_likes,
+        "received_likes_count": received_likes,
+    }
 
 
 def compact_lines(text, limit=80):
@@ -93,6 +148,34 @@ def clean_video_title(value):
     return text
 
 
+async def dismiss_douyin_login_popup(page):
+    """关闭未登录访问公开页面时出现的登录遮罩。"""
+    panel = page.locator("#login-panel-new, [id^='login-full-panel-']")
+    if not await panel.count() or not await panel.first.is_visible():
+        return False
+
+    close_button = page.locator(
+        "#douyin_login_comp_flat_panel_title + div, "
+        "#login-panel-new [aria-label='关闭']"
+    )
+    if await close_button.count() and await close_button.first.is_visible():
+        await close_button.first.click(force=True)
+    else:
+        await page.keyboard.press("Escape")
+
+    try:
+        await panel.first.wait_for(state="hidden", timeout=3000)
+    except Exception:
+        # 页面版本变化时，移除仍占据视口的遮罩，避免阻止滚动与采集。
+        await page.evaluate(
+            """() => {
+                document.querySelectorAll('#login-panel-new, [id^="login-full-panel-"]')
+                    .forEach(node => node.remove());
+            }"""
+        )
+    return True
+
+
 def normalize_douyin_user_url(url):
     value = (url or "").strip()
     if not value:
@@ -118,6 +201,7 @@ def normalize_douyin_user_url(url):
     return f"https://www.douyin.com/user/{user_id}"
 
 
+@on_browser_worker
 async def discover_douyin_benchmark_accounts(
     keywords,
     cookie_file=None,
@@ -129,7 +213,7 @@ async def discover_douyin_benchmark_accounts(
         raise ValueError("请至少输入一个对标关键词")
 
     limit = max(1, min(int(limit or 6), 20))
-    storage_state = None
+    storage_state = resolve_storage_state(cookie_file)
     if cookie_file:
         cookie_path = Path(BASE_DIR / "cookiesFile" / cookie_file)
         if cookie_path.exists():
@@ -137,22 +221,8 @@ async def discover_douyin_benchmark_accounts(
 
     results = []
     seen = set()
-    async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(**launch_options())
-        context_kwargs = {
-            "viewport": {"width": 1440, "height": 1200},
-            "locale": "zh-CN",
-            "user_agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/125.0.0.0 Safari/537.36"
-            ),
-        }
-        if storage_state:
-            context_kwargs["storage_state"] = storage_state
-        context = await browser.new_context(**context_kwargs)
-        context = await set_init_script(context)
-        page = await context.new_page()
+    engine = BrowserEngine(playwright_factory=async_playwright, init_context=set_init_script)
+    async with engine.session(collection_browser_spec(storage_state)) as (context, page):
 
         extract_script = """(keyword) => {
             const cleanText = (value) => (value || "").replace(/\\s+/g, " ").trim();
@@ -225,33 +295,22 @@ async def discover_douyin_benchmark_accounts(
             if len(results) >= limit:
                 break
 
-        await context.close()
-        await browser.close()
-
     return results[:limit]
 
 
+@on_browser_worker
 async def search_douyin_content(keywords, cookie_file=None, target_count=50, scroll_rounds=12):
     """采集抖音综合内容搜索结果，保留页面原始顺序。"""
     keyword_list = [item.strip() for item in (keywords or []) if item and item.strip()]
     if not keyword_list:
         raise ValueError("请至少输入一个内容关键词")
     target_count = max(1, min(int(target_count or 50), 100))
-    storage_state = None
-    electron_state = Path(BASE_DIR / "cookiesFile" / "douyin-electron-session.json")
-    if electron_state.exists():
-        storage_state = electron_state
-    if cookie_file:
-        cookie_path = Path(BASE_DIR / "cookiesFile" / cookie_file)
-        if cookie_path.exists() and storage_state is None:
-            storage_state = cookie_path
-    async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(**launch_options())
-        kwargs = {"viewport": {"width": 1440, "height": 1200}, "locale": "zh-CN"}
-        if storage_state:
-            kwargs["storage_state"] = storage_state
-        context = await set_init_script(await browser.new_context(**kwargs))
-        page = await context.new_page()
+    storage_state = resolve_storage_state(cookie_file)
+    spec = collection_browser_spec(storage_state)
+    # Content search previously used Chromium's default user agent.
+    spec.context_options.pop("user_agent", None)
+    engine = BrowserEngine(playwright_factory=async_playwright, init_context=set_init_script)
+    async with engine.session(spec) as (context, page):
         results = []
         seen = set()
         for keyword in keyword_list:
@@ -286,11 +345,10 @@ async def search_douyin_content(keywords, cookie_file=None, target_count=50, scr
                 if len(results) >= target_count: break
                 await page.mouse.wheel(0, 2400); await page.wait_for_timeout(1600)
             if len(results) >= target_count: break
-        await context.close()
-        await browser.close()
     return results[:target_count]
 
 
+@on_browser_worker
 async def scrape_douyin_benchmark(
     homepage_url,
     cookie_file=None,
@@ -301,30 +359,17 @@ async def scrape_douyin_benchmark(
 ):
     url = normalize_douyin_url(homepage_url)
     existing_video_urls = set(existing_video_urls or [])
-    storage_state = None
+    storage_state = resolve_storage_state(cookie_file)
     if cookie_file:
         cookie_path = Path(BASE_DIR / "cookiesFile" / cookie_file)
         if cookie_path.exists():
             storage_state = cookie_path
 
-    async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(**launch_options())
-        context_kwargs = {
-            "viewport": {"width": 1440, "height": 1200},
-            "locale": "zh-CN",
-            "user_agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/125.0.0.0 Safari/537.36"
-            ),
-        }
-        if storage_state:
-            context_kwargs["storage_state"] = storage_state
-        context = await browser.new_context(**context_kwargs)
-        context = await set_init_script(context)
-        page = await context.new_page()
+    engine = BrowserEngine(playwright_factory=async_playwright, init_context=set_init_script)
+    async with engine.session(collection_browser_spec(storage_state)) as (context, page):
         await page.goto(url, wait_until="domcontentloaded", timeout=60000)
         await page.wait_for_timeout(5000)
+        await dismiss_douyin_login_popup(page)
 
         title = await page.title()
         body_text = await page.locator("body").inner_text(timeout=15000)
@@ -367,7 +412,8 @@ async def scrape_douyin_benchmark(
                     receivedLikes: statText("user-info-like"),
                 };
                 const imgs = Array.from(document.images).map(img => img.src).filter(Boolean);
-                const avatar = imgs.find(src => /avatar|aweme|douyin|pstatp|byteimg/.test(src)) || imgs[0] || "";
+                const avatarNode = document.querySelector('[data-e2e="live-avatar"] img');
+                const avatar = avatarNode?.src || imgs.find(src => /aweme-avatar|avatar/.test(src)) || "";
                 const anchors = Array.from(document.querySelectorAll("a[href]"));
                 const videos = [];
                 const seen = new Set();
@@ -470,6 +516,7 @@ async def scrape_douyin_benchmark(
         last_count = 0
         stagnant_rounds = 0
         for _ in range(scroll_rounds + 1):
+            await dismiss_douyin_login_popup(page)
             profile = await page.evaluate(extract_script, max_scan_videos)
             for video in profile.get("videos") or []:
                 video_url = video.get("video_url")
@@ -491,9 +538,6 @@ async def scrape_douyin_benchmark(
             await page.mouse.wheel(0, 2600)
             await page.wait_for_timeout(1800)
 
-        await context.close()
-        await browser.close()
-
     raw_text = profile.get("text") or body_text or ""
     nickname = profile.get("h1") or (title.split("-")[0].strip() if title else "")
     lines = compact_lines(raw_text)
@@ -512,17 +556,13 @@ async def scrape_douyin_benchmark(
         if selected_new_count >= max_videos:
             break
 
+    profile_counts = build_profile_counts(profile.get("profileStats"), raw_text)
     return {
         "homepage_url": url,
         "nickname": nickname,
         "avatar": profile.get("avatar") or "",
         "bio": bio,
-        # Keep these fields aligned with the established benchmark table/export
-        # headers: followers_count=关注人, likes_count=粉丝.
-        "following_count": (profile.get("profileStats") or {}).get("following") or parse_count(raw_text, ["关注"]),
-        "followers_count": (profile.get("profileStats") or {}).get("following") or parse_count(raw_text, ["关注"]),
-        "likes_count": (profile.get("profileStats") or {}).get("fans") or parse_count(raw_text, ["粉丝"]),
-        "received_likes_count": (profile.get("profileStats") or {}).get("receivedLikes") or parse_count(raw_text, ["获赞", "喜欢"]),
+        **profile_counts,
         "video_count": parse_count(raw_text, ["作品"]),
         "videos": [
             {

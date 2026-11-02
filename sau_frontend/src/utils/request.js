@@ -25,7 +25,8 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response) => {
     const { data } = response
-    if (data.code === 200 || data.success) {
+    const businessCode = Number(data?.code)
+    if (data?.success || (businessCode >= 200 && businessCode < 300)) {
       return data
     }
     ElMessage.error(data.message || data.msg || '请求失败')
@@ -36,6 +37,7 @@ request.interceptors.response.use(
       const { status, data } = error.response
       if (status === 401) {
         localStorage.removeItem('token')
+        localStorage.removeItem('auth_mode')
         ElMessage.error(data?.message || '请重新登录')
         if (router.currentRoute.value.path !== '/login') {
           router.push({

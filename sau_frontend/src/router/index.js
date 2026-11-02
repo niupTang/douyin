@@ -6,8 +6,10 @@ import PublishCenter from '../views/PublishCenter.vue'
 import About from '../views/About.vue'
 import DataView from '../views/DataView.vue'
 import BenchmarkManagement from '../views/BenchmarkManagement.vue'
+import BenchmarkSearch from '../views/BenchmarkSearch.vue'
 import IdeaRadar from '../views/IdeaRadar.vue'
 import OwnContentReview from '../views/OwnContentReview.vue'
+import AccountDiagnosis from '../views/AccountDiagnosis.vue'
 import Login from '../views/Login.vue'
 import AgentModels from '../views/AgentModels.vue'
 import KouboStudio from '../views/KouboStudio.vue'
@@ -47,7 +49,14 @@ const routes = [
   {
     path: '/benchmark-management',
     name: 'BenchmarkManagement',
-    component: BenchmarkManagement
+    component: BenchmarkManagement,
+    beforeEnter: (to) => to.query.discovery_task_id
+      ? { path: '/benchmark-search', query: to.query, hash: to.hash } : true
+  },
+  {
+    path: '/benchmark-search',
+    name: 'BenchmarkSearch',
+    component: BenchmarkSearch
   },
   {
     path: '/idea-radar',
@@ -58,6 +67,11 @@ const routes = [
     path: '/own-content-review',
     name: 'OwnContentReview',
     component: OwnContentReview
+  },
+  {
+    path: '/account-diagnosis',
+    name: 'AccountDiagnosis',
+    component: AccountDiagnosis
   },
   {
     path: '/agent-models',
@@ -82,7 +96,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('auth_mode') === 'license' ? localStorage.getItem('token') : ''
   if (to.meta.public && token && to.path === '/login') {
     return '/'
   }

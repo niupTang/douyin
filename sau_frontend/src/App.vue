@@ -3,7 +3,7 @@
   <el-container v-else class="app-shell">
     <el-aside :width="isCollapse ? '72px' : '248px'" class="app-sidebar">
       <div class="brand">
-        <div class="brand-mark">S</div>
+        <div class="brand-mark">↗</div>
         <div v-show="!isCollapse" class="brand-copy">
           <strong>Sunbird OS</strong>
           <span>本地内容运营工作台</span>
@@ -17,12 +17,16 @@
         class="sidebar-menu"
       >
         <el-menu-item index="/">
-          <el-icon><HomeFilled /></el-icon>
+          <el-icon><DataAnalysis /></el-icon>
           <template #title>增长总览</template>
         </el-menu-item>
         <el-menu-item index="/benchmark-management">
           <el-icon><Aim /></el-icon>
-          <template #title>对标内容库</template>
+          <template #title>抖音对标管理</template>
+        </el-menu-item>
+        <el-menu-item index="/benchmark-search">
+          <el-icon><Search /></el-icon>
+          <template #title>抖音搜索</template>
         </el-menu-item>
         <el-menu-item index="/idea-radar">
           <el-icon><DataAnalysis /></el-icon>
@@ -31,6 +35,10 @@
         <el-menu-item index="/own-content-review">
           <el-icon><TrendCharts /></el-icon>
           <template #title>作品复盘</template>
+        </el-menu-item>
+        <el-menu-item index="/account-diagnosis">
+          <el-icon><Aim /></el-icon>
+          <template #title>账号诊断</template>
         </el-menu-item>
         <el-menu-item index="/material-management">
           <el-icon><Picture /></el-icon>
@@ -66,17 +74,14 @@
 
     <el-container class="workspace">
       <el-header class="topbar">
-        <button class="icon-button" aria-label="切换侧边栏" @click="toggleSidebar">
-          <el-icon><Fold /></el-icon>
-        </button>
-        <div class="topbar-title">
-          <span>{{ routeMeta.kicker }}</span>
-          <strong>{{ routeMeta.title }}</strong>
-        </div>
+        <button class="icon-button" aria-label="切换侧边栏" @click="toggleSidebar"><el-icon><Fold /></el-icon></button>
+        <div class="global-search"><el-icon><Search /></el-icon><span>搜索作品、对标账号或关键词...</span><kbd>⌘ K</kbd></div>
         <div class="topbar-actions">
-          <el-button text :icon="Refresh">同步数据</el-button>
-          <el-button type="primary" :icon="Plus">新建复盘</el-button>
-          <el-button text :icon="SwitchButton" @click="logout">退出</el-button>
+          <el-button class="sync-button" text :icon="Refresh">同步数据</el-button>
+          <el-button class="new-button" type="primary" :icon="Plus">新建复盘</el-button>
+          <button class="notification-button" aria-label="通知"><el-icon><Bell /></el-icon><i></i></button>
+          <button class="theme-button" aria-label="切换主题">☼</button>
+          <div class="profile"><span class="profile-avatar"><el-icon><User /></el-icon></span><span class="profile-name">用户</span><el-icon><ArrowDown /></el-icon></div>
         </div>
       </el-header>
 
@@ -91,8 +96,11 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Aim,
+  ArrowDown,
+  Bell,
   DataAnalysis,
   Fold,
   HomeFilled,
@@ -100,6 +108,7 @@ import {
   PieChart,
   Plus,
   Refresh,
+  Search,
   Setting,
   SwitchButton,
   TrendCharts,
@@ -115,9 +124,11 @@ const isCollapse = ref(false)
 
 const pageMeta = {
   '/': { kicker: 'Dashboard', title: '增长总览' },
-  '/benchmark-management': { kicker: 'Benchmark', title: '对标内容库' },
+  '/benchmark-management': { kicker: 'Benchmark', title: '抖音对标管理' },
+  '/benchmark-search': { kicker: 'Search', title: '抖音搜索' },
   '/idea-radar': { kicker: 'Insight', title: '爆款拆解' },
   '/own-content-review': { kicker: 'Review', title: '作品复盘' },
+  '/account-diagnosis': { kicker: 'Diagnosis', title: '账号流量诊断' },
   '/material-management': { kicker: 'Assets', title: '素材资产' },
   '/koubo-studio': { kicker: 'Koubo Studio', title: '口播生产工作台' },
   '/publish-center': { kicker: 'Publish', title: '发布中心' },
@@ -134,16 +145,25 @@ const toggleSidebar = () => {
   isCollapse.value = !isCollapse.value
 }
 
-const logout = () => {
-  userStore.logout()
-  router.replace('/login')
+const logout = async () => {
+  try {
+    await ElMessageBox.confirm('解绑后本机将退出授权，卡密可用于重新激活其他电脑。是否继续？', '解绑当前设备', { type: 'warning' })
+    if (window.sunbirdDesktop?.deactivateLicense) await window.sunbirdDesktop.deactivateLicense()
+    userStore.logout()
+    router.replace('/login')
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error(error?.message || '解绑失败')
+  }
 }
 </script>
 
 <style lang="scss" scoped>
 .app-shell {
   min-height: 100vh;
-  background: #f6f7f9;
+  background:
+    radial-gradient(ellipse 70% 55% at 0% 0%, #ffe4e0 0%, #fff8f7 36%, transparent 68%),
+    radial-gradient(ellipse 75% 65% at 100% 100%, #dceaff 0%, #f3f7ff 42%, transparent 75%),
+    linear-gradient(145deg, #ffffff 0%, #f6f9ff 100%);
 }
 
 .app-sidebar {
@@ -152,7 +172,8 @@ const logout = () => {
   height: 100vh;
   overflow: hidden;
   border-right: 1px solid #e6e8ec;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(16px);
   transition: width 0.24s ease;
 }
 
@@ -160,21 +181,23 @@ const logout = () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 72px;
+  height: 88px;
   padding: 0 18px;
-  border-bottom: 1px solid #edf0f3;
+  border-bottom: 1px solid #edf2f8;
 }
 
 .brand-mark {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px 14px 14px 4px;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  background: #111827;
+  background: linear-gradient(145deg, #ff6d59, #ef3d40);
   color: #ffffff;
+  font-size: 24px;
   font-weight: 800;
+  transform: rotate(-28deg);
 }
 
 .brand-copy {
@@ -199,17 +222,18 @@ const logout = () => {
 
 .sidebar-menu {
   border-right: 0;
-  padding: 12px 10px;
+  padding: 18px 10px;
 
   :deep(.el-menu-item) {
-    height: 42px;
-    margin-bottom: 4px;
-    border-radius: 8px;
-    color: #4b5563;
+    height: 46px;
+    margin-bottom: 6px;
+    border-radius: 11px;
+    color: #66758f;
+    font-size: 15px;
   }
 
   :deep(.el-menu-item.is-active) {
-    background: #111827;
+    background: linear-gradient(100deg, #ff6557, #ff8470);
     color: #ffffff;
   }
 }
@@ -247,56 +271,54 @@ const logout = () => {
 }
 
 .topbar {
-  height: 72px;
-  padding: 0 28px;
+  height: 66px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   gap: 16px;
-  border-bottom: 1px solid #e6e8ec;
-  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid #e4ebf5;
+  background: rgba(255, 255, 255, 0.86);
   backdrop-filter: blur(12px);
 }
 
 .icon-button {
   width: 36px;
   height: 36px;
-  border: 1px solid #dce1e7;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #374151;
+  border: 1px solid #e4ebf5;
+  border-radius: 11px;
+  background: #f7faff;
+  color: #4d6d9b;
   cursor: pointer;
 }
 
-.topbar-title {
-  min-width: 0;
-
-  span,
-  strong {
-    display: block;
-  }
-
-  span {
-    color: #8b95a5;
-    font-size: 12px;
-  }
-
-  strong {
-    margin-top: 2px;
-    color: #111827;
-    font-size: 18px;
-  }
+.global-search {
+  width: min(430px, 42vw);
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid #e3ebf5;
+  border-radius: 11px;
+  background: #f6f9fd;
+  color: #a0adbf;
+  font-size: 13px;
 }
+.global-search kbd { margin-left: auto; padding: 2px 7px; border: 1px solid #e0e8f3; border-radius: 6px; background: #fff; color: #8c9ab0; font-size: 11px; }
+.global-search .el-icon { color:#6888b6; font-size:18px; }
 
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   margin-left: auto;
 }
+.sync-button { color:#71819a; }.new-button { border-radius:9px; background:#ff6859; border-color:#ff6859; }.notification-button,.theme-button { position:relative; width:36px; height:36px; display:grid; place-items:center; color:#536987; font-size:20px; }.notification-button i { position:absolute; top:4px; right:4px; width:7px; height:7px; border-radius:50%; background:#ff6557; }.profile { display:flex; align-items:center; gap:7px; padding-left:10px; border-left:1px solid #e7edf5; color:#293a56; font-size:13px; }.profile-avatar { width:32px; height:32px; display:grid; place-items:center; border-radius:50%; background:linear-gradient(145deg,#303944,#151b28); color:#fff; font-size:12px; }.profile small { padding:3px 6px; border-radius:6px; background:#fff2d8; color:#c28a2d; font-size:10px; }.profile .el-icon { color:#657792; }
 
 .app-main {
-  min-height: calc(100vh - 72px);
-  padding: 24px;
+  min-height: calc(100vh - 66px);
+  padding: 26px 28px;
+  background: transparent;
   overflow-y: auto;
 }
 
@@ -309,9 +331,15 @@ const logout = () => {
     padding: 0 16px;
   }
 
+  .global-search { display:none; }
+
   .topbar-actions {
-    display: none;
+    gap: 4px;
   }
+
+  .sync-button,.new-button { display:none; }
+
+  .profile-name,.profile small { display:none; }
 
   .app-main {
     padding: 16px;

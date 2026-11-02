@@ -1,4 +1,4 @@
-import sqlite3
+from backend_app.common import sqlite as sqlite3
 
 
 def add_file_record(db_path, filename, filesize, file_path):

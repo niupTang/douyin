@@ -29,6 +29,6 @@ register_realtime(app, koubo_store)
 
 if __name__ == "__main__":
     app.run(
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=int(os.environ.get("SAU_BACKEND_PORT", "5409")),
     )

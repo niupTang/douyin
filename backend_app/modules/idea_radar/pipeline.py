@@ -20,6 +20,7 @@ def run_pipeline(
     get_agent_model,
     parse_metric_number,
     registry,
+    get_download_root,
 ):
     try:
         video = load_video(video_id)
@@ -32,7 +33,9 @@ def run_pipeline(
                 video_id, "downloading", 3, "正在准备下载视频", analysis_basis="title_only",
                 target_direction=target_direction, radar_json=None, error_message=None,
             )
-            with tempfile.TemporaryDirectory(prefix=f"idea-radar-{video_id}-") as work_dir:
+            with tempfile.TemporaryDirectory(
+                prefix=f"idea-radar-{video_id}-", dir=get_download_root()
+            ) as work_dir:
                 download_progress = {"value": -1}
 
                 def report_download(percent, message):
@@ -92,7 +95,7 @@ def run_pipeline(
                 analysis_basis="transcript",
                 target_direction=target_direction, radar_json=None, error_message=None,
             )
-        update_progress(video_id, "analyzing", 84, "正在调用 Hermes Gateway 拆解正文与内容机会")
+        update_progress(video_id, "analyzing", 84, "正在调用已配置模型拆解正文与内容机会")
         radar = run_structured(build_prompt(video, transcript, target_direction), schema_factory())
         try:
             selected_agent_model = get_agent_model()
