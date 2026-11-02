@@ -56,6 +56,7 @@
                 </el-table-column>
                 <el-table-column label="操作">
                   <template #default="scope">
+                    <el-button size="small" type="primary" plain @click="handleRelogin(scope.row)">重新登录</el-button>
                     <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
                     <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
                   </template>
@@ -326,7 +327,7 @@
     <!-- 添加/编辑账号对话框 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="dialogType === 'add' ? '添加账号' : '编辑账号'"
+      :title="dialogType === 'add' ? '添加账号' : dialogType === 'relogin' ? '重新登录账号' : '编辑账号'"
       width="500px"
       :close-on-click-modal="false"
       :close-on-press-escape="!sseConnecting"
@@ -338,7 +339,7 @@
             v-model="accountForm.platform" 
             placeholder="请选择平台" 
             style="width: 100%"
-            :disabled="dialogType === 'edit' || sseConnecting"
+            :disabled="dialogType !== 'add' || sseConnecting"
           >
             <el-option label="快手" value="快手" />
             <el-option label="抖音" value="抖音" />
@@ -350,7 +351,7 @@
           <el-input 
             v-model="accountForm.name" 
             placeholder="请输入账号名称" 
-            :disabled="sseConnecting"
+            :disabled="dialogType === 'relogin' || sseConnecting"
           />
         </el-form-item>
         
@@ -366,11 +367,11 @@
           </div>
           <div v-else-if="loginStatus === '200'" class="success-wrapper">
             <el-icon><CircleCheckFilled /></el-icon>
-            <span>添加成功</span>
+            <span>{{ dialogType === 'relogin' ? '重新登录成功' : '添加成功' }}</span>
           </div>
           <div v-else-if="loginStatus === '500'" class="error-wrapper">
             <el-icon><CircleCloseFilled /></el-icon>
-            <span>添加失败，请稍后再试</span>
+            <span>{{ dialogType === 'relogin' ? '重新登录失败，请稍后再试' : '添加失败，请稍后再试' }}</span>
           </div>
         </div>
       </el-form>
@@ -532,6 +533,15 @@ const handleEdit = (row) => {
   dialogVisible.value = true
 }
 
+const handleRelogin = (row) => {
+  dialogType.value = 'relogin'
+  Object.assign(accountForm, { ...row })
+  sseConnecting.value = false
+  qrCodeData.value = ''
+  loginStatus.value = ''
+  dialogVisible.value = true
+}
+
 // 删除账号
 const handleDelete = (row) => {
   ElMessageBox.confirm(
@@ -580,7 +590,7 @@ const closeSSEConnection = () => {
 }
 
 // 建立SSE连接
-const connectSSE = (platform, name) => {
+const connectSSE = (platform, name, userInfoId = null) => {
   // 关闭可能存在的连接
   closeSSEConnection()
   
@@ -601,7 +611,9 @@ const connectSSE = (platform, name) => {
   
   // 创建SSE连接
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5409'
-  const url = `${baseUrl}/login?type=${type}&id=${encodeURIComponent(name)}`
+  const accountQuery = userInfoId ? `&userInfoId=${encodeURIComponent(userInfoId)}` : ''
+  const loginSessionId = crypto.randomUUID()
+  const url = `${baseUrl}/login?type=${type}&id=${encodeURIComponent(name)}&loginSessionId=${encodeURIComponent(loginSessionId)}${accountQuery}`
   
   eventSource = new EventSource(url)
   
@@ -627,6 +639,16 @@ const connectSSE = (platform, name) => {
       }
     } 
     // 如果收到状态码
+    else if (data.startsWith('ERROR:')) {
+      loginStatus.value = '500'
+      ElMessage.error(data.replace('ERROR:', '') || '账号登录失败')
+      closeSSEConnection()
+      setTimeout(() => {
+        sseConnecting.value = false
+        qrCodeData.value = ''
+        loginStatus.value = ''
+      }, 2000)
+    }
     else if (data === '200' || data === '500') {
       loginStatus.value = data
       
@@ -640,7 +662,7 @@ const connectSSE = (platform, name) => {
           setTimeout(() => {
             dialogVisible.value = false
             sseConnecting.value = false
-            ElMessage.success('账号添加成功')
+            ElMessage.success(dialogType.value === 'relogin' ? '账号重新登录成功' : '账号添加成功')
             
             // 显示更新账号信息提示
             ElMessage({
@@ -684,15 +706,19 @@ const connectSSE = (platform, name) => {
 const submitAccountForm = () => {
   accountFormRef.value.validate(async (valid) => {
     if (valid) {
-      if (dialogType.value === 'add') {
+      if (dialogType.value === 'add' || dialogType.value === 'relogin') {
         // 建立SSE连接
-        connectSSE(accountForm.platform, accountForm.name)
+        connectSSE(
+          accountForm.platform,
+          accountForm.name,
+          dialogType.value === 'relogin' ? accountForm.id : null
+        )
       } else {
         // 编辑账号逻辑
         try {
           const res = await accountApi.updateAccount({
             id: accountForm.id,
-            type: Number(accountForm.platform === '快手' ? 1 : accountForm.platform === '抖音' ? 2 : accountForm.platform === '视频号' ? 3 : 4),
+            type: Number(accountForm.platform === '小红书' ? 1 : accountForm.platform === '视频号' ? 2 : accountForm.platform === '抖音' ? 3 : 4),
             userName: accountForm.name
           })
           if (res.code === 200) {

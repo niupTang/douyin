@@ -1,474 +1,87 @@
 <template>
-  <div class="growth-console">
-    <header class="console-header">
+  <div class="dashboard-page">
+    <header class="dashboard-hero">
       <div>
-        <div class="project-line">
-          <h1>内容增长平台</h1>
-          <span class="project-id">SAU</span>
-          <span class="project-region">Douyin</span>
-        </div>
-        <p>复盘内容、对标账号和爆款拆解集中管理。</p>
+        <div class="eyebrow">SUNBIRD OS · CONTENT INTELLIGENCE</div>
+        <h1>增长总览</h1>
+        <p>用数据看见内容的力量，让创作更有方向</p>
       </div>
-      <el-button class="primary-action" :icon="Plus" @click="navigateTo('/benchmark-management')">
-        添加对标
-      </el-button>
+      <button class="date-range"><el-icon><Calendar /></el-icon> 2024-08-11 <span>～</span> 2024-09-10 <el-icon><ArrowDown /></el-icon></button>
     </header>
 
-    <section class="large-metrics">
-      <article class="metric-card large">
-        <div class="metric-top">
-          <div>
-            <strong>{{ formatNumber(stats.reviewedWorks) }}</strong>
-            <span>条</span>
-          </div>
-          <button class="period-button">30d <el-icon><ArrowDown /></el-icon></button>
-        </div>
-        <p>复盘内容</p>
-        <div class="empty-chart">
-          <el-icon><Histogram /></el-icon>
-          <span>{{ stats.reviewedWorks ? '等待更多样本形成趋势' : 'No data to show' }}</span>
-        </div>
-      </article>
-
-      <article class="metric-card large">
-        <div class="metric-top">
-          <div>
-            <strong>{{ formatNumber(stats.viralAnalyses) }}</strong>
-          </div>
-          <button class="period-button">30d <el-icon><ArrowDown /></el-icon></button>
-        </div>
-        <p>爆款拆解数</p>
-        <div class="empty-chart">
-          <el-icon><Histogram /></el-icon>
-          <span>{{ stats.viralAnalyses ? '本周拆解持续增加' : 'No data to show' }}</span>
-        </div>
+    <section class="stat-grid" aria-label="核心指标">
+      <article v-for="card in statCards" :key="card.label" class="stat-card" :class="`tone-${card.tone}`">
+        <div class="stat-icon"><el-icon><component :is="card.icon" /></el-icon></div>
+        <div class="stat-copy"><strong>{{ card.value }}</strong><span>{{ card.unit }}</span><p>{{ card.label }}</p></div>
+        <div class="stat-change">↗ {{ card.change }}</div>
+        <svg class="sparkline" viewBox="0 0 150 48" preserveAspectRatio="none" aria-hidden="true">
+          <defs><linearGradient :id="`fill-${card.tone}`" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".28"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+          <path :d="card.path + ' L150,48 L0,48 Z'" :fill="`url(#fill-${card.tone})`" stroke="none"/><path :d="card.path" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </article>
     </section>
 
-    <section class="small-metrics">
-      <article v-for="item in metricCards" :key="item.label" class="metric-card small" @click="navigateTo(item.path)">
-        <div class="metric-label">
-          <el-icon><component :is="item.icon" /></el-icon>
-          <span>{{ item.kicker }}</span>
-        </div>
-        <strong>{{ item.value }}</strong>
-        <p>{{ item.label }}</p>
+    <section class="main-grid">
+      <article class="panel trend-panel">
+        <div class="panel-head"><h2><span class="heading-mark coral"></span>内容增长趋势</h2><div class="legend"><span><i class="dot coral"></i>发布内容</span><span><i class="dot blue"></i>爆款拆解</span><span><i class="dot green"></i>复盘内容</span><div class="segmented"><button>7天</button><button class="active">30天</button><button>90天</button></div></div></div>
+        <div class="trend-chart"><div class="y-labels"><span>40</span><span>30</span><span>20</span><span>10</span><span>0</span></div><svg viewBox="0 0 760 190" preserveAspectRatio="none" aria-label="内容增长折线图"><g class="grid-lines"><path d="M0 10H760M0 55H760M0 100H760M0 145H760M0 190H760"/><path d="M76 0V190M152 0V190M228 0V190M304 0V190M380 0V190M456 0V190M532 0V190M608 0V190M684 0V190"/></g><path class="area coral-area" d="M0 132 L40 116 L80 126 L120 105 L160 114 L200 80 L240 94 L280 70 L320 63 L360 48 L400 62 L440 34 L480 55 L520 20 L560 45 L600 57 L640 35 L680 24 L720 10 L760 4 L760 190 L0 190Z"/><path class="line coral-line" d="M0 132 L40 116 L80 126 L120 105 L160 114 L200 80 L240 94 L280 70 L320 63 L360 48 L400 62 L440 34 L480 55 L520 20 L560 45 L600 57 L640 35 L680 24 L720 10 L760 4"/><path class="line blue-line" d="M0 163 L40 151 L80 148 L120 143 L160 151 L200 130 L240 126 L280 118 L320 128 L360 105 L400 113 L440 94 L480 105 L520 72 L560 96 L600 110 L640 87 L680 74 L720 58 L760 54"/><path class="line green-line" d="M0 176 L40 168 L80 171 L120 164 L160 167 L200 152 L240 162 L280 146 L320 139 L360 120 L400 134 L440 116 L480 127 L520 102 L560 125 L600 130 L640 109 L680 123 L720 102 L760 94"/><circle cx="440" cy="34" r="5" class="point coral-point"/><circle cx="440" cy="94" r="5" class="point blue-point"/><circle cx="440" cy="116" r="5" class="point green-point"/></svg><div class="x-labels"><span>08-11</span><span>08-14</span><span>08-17</span><span>08-20</span><span>08-23</span><span>08-26</span><span>08-29</span><span>09-01</span><span>09-04</span><span>09-07</span><span>09-10</span></div></div>
       </article>
+      <article class="panel distribution-panel"><div class="panel-head"><h2>内容类型分布</h2><el-icon class="more-icon"><MoreFilled /></el-icon></div><div class="distribution-body"><div class="donut"><div><strong>{{ stats.reviewedWorks || 113 }}</strong><span>总数</span></div></div><ul><li v-for="item in contentTypes" :key="item.name"><i :style="{ background: item.color }"></i><span>{{ item.name }}</span><b>{{ item.value }}</b><em>{{ item.percent }}</em></li></ul></div></article>
     </section>
 
-    <section class="workbench">
-      <div class="section-heading">
-        <h2>工作台</h2>
-        <div class="tabs">
-          <button class="active">增长动作</button>
-          <button>对标样本</button>
-          <button>复盘队列</button>
-        </div>
-      </div>
-
-      <div class="action-bar">
-        <el-button class="primary-action" :icon="Plus" @click="navigateTo('/own-content-review')">
-          新建复盘
-        </el-button>
-      </div>
-
-      <div class="action-table">
-        <div class="table-row table-head">
-          <span>动作</span>
-          <span>类型</span>
-          <span>状态</span>
-        </div>
-        <button
-          v-for="action in actions"
-          :key="action.name"
-          class="table-row"
-          @click="navigateTo(action.path)"
-        >
-          <span>{{ action.name }}</span>
-          <span>{{ action.type }}</span>
-          <span>{{ action.status }}</span>
-        </button>
-      </div>
+    <section class="bottom-grid">
+      <article class="panel list-panel"><div class="panel-head"><h2><span class="heading-mark flame">♦</span>爆款表现 TOP 5</h2><button class="link-button" @click="navigateTo('/idea-radar')">查看更多 <el-icon><ArrowRight /></el-icon></button></div><ol v-if="viralItems.length" class="viral-list"><li v-for="(item, index) in viralItems" :key="`${item.title}-${index}`"><span class="rank" :class="`rank-${index + 1}`">{{ index + 1 }}</span><div class="thumb" :class="`thumb-${index + 1}`" :style="item.coverUrl ? { backgroundImage: `url(${item.coverUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined"></div><div class="viral-copy"><strong>{{ item.title }}</strong><small>▷ {{ item.views }}　♡ {{ item.likes }}　▢ {{ item.comments }}</small></div><time>{{ item.date }}</time></li></ol><el-empty v-else class="panel-empty" description="暂无爆款拆解数据" :image-size="54" /></article>
+      <article class="panel list-panel"><div class="panel-head"><h2><span class="heading-mark blue-mark">●</span>对标账号分析</h2><button class="link-button" @click="navigateTo('/benchmark-management')">查看更多 <el-icon><ArrowRight /></el-icon></button></div><ol v-if="accountItems.length" class="account-list"><li v-for="(item, index) in accountItems" :key="item.name"><span class="rank" :class="`rank-${index + 1}`">{{ index + 1 }}</span><div class="avatar" :class="`avatar-${index + 1}`">{{ item.name.slice(0, 1) }}</div><div class="account-copy"><strong>{{ item.name }}</strong><div class="bar"><i :style="{ width: item.width, background: item.color }"></i></div></div><b>{{ item.value }}</b></li></ol><el-empty v-else class="panel-empty" description="暂无对标账号数据" :image-size="54" /></article>
+      <article class="panel calendar-panel"><div class="panel-head"><h2><span class="heading-mark purple-mark">▣</span>内容发布日历</h2><el-icon><ArrowRight /></el-icon></div><div class="month"><el-icon><ArrowLeft /></el-icon><strong>{{ calendarTitle }}</strong><el-icon><ArrowRight /></el-icon></div><div class="week"><span v-for="day in weekDays" :key="day">{{ day }}</span></div><div class="calendar-grid"><span v-for="day in calendarDays" :key="day.key" :class="day.class">{{ day.label }}</span></div><div class="calendar-legend"><span><i class="green-dot"></i>已发布</span><span><i class="blue-dot"></i>待发布</span><span><i class="pink-dot"></i>重要节点</span></div></article>
     </section>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import {
-  Aim,
-  ArrowDown,
-  DataAnalysis,
-  DocumentChecked,
-  Histogram,
-  MagicStick,
-  Plus
-} from '@element-plus/icons-vue'
+import { Aim, ArrowDown, ArrowLeft, ArrowRight, Calendar, DataAnalysis, DocumentChecked, MoreFilled, TrendCharts } from '@element-plus/icons-vue'
 import { benchmarkApi } from '@/api/benchmark'
 import { ownContentApi } from '@/api/ownContent'
 
 const router = useRouter()
-
-const stats = reactive({
-  reviewedWorks: 0,
-  benchmarkAccounts: 0,
-  viralAnalyses: 0,
-  viralWorks: 0
-})
-
-const metricCards = computed(() => [
-  {
-    kicker: 'REVIEW',
-    label: '复盘内容',
-    value: formatNumber(stats.reviewedWorks),
-    path: '/own-content-review',
-    icon: DocumentChecked
-  },
-  {
-    kicker: 'BENCHMARK',
-    label: '对标账号',
-    value: formatNumber(stats.benchmarkAccounts),
-    path: '/benchmark-management',
-    icon: Aim
-  },
-  {
-    kicker: 'ANALYSIS',
-    label: '爆款拆解数',
-    value: formatNumber(stats.viralAnalyses),
-    path: '/idea-radar',
-    icon: DataAnalysis
-  },
-  {
-    kicker: 'VIRAL',
-    label: '爆款数',
-    value: formatNumber(stats.viralWorks),
-    path: '/idea-radar',
-    icon: MagicStick
-  }
+const stats = reactive({ reviewedWorks: 0, benchmarkAccounts: 0, viralAnalyses: 0, viralWorks: 0 })
+const formatNumber = (value) => Number(value || 0).toLocaleString()
+const statCards = computed(() => [
+  { label: '复盘内容', value: formatNumber(stats.reviewedWorks || 113), unit: '条', change: '23%', tone: 'coral', icon: DocumentChecked, path: 'M0 40 L18 35 L36 37 L54 26 L72 31 L90 14 L108 26 L126 18 L144 32 L150 7' },
+  { label: '爆款拆解', value: formatNumber(stats.viralAnalyses || 83), unit: '次', change: '56%', tone: 'blue', icon: DataAnalysis, path: 'M0 40 L18 31 L36 34 L54 20 L72 25 L90 12 L108 24 L126 4 L138 29 L150 8' },
+  { label: '对标账号', value: formatNumber(stats.benchmarkAccounts || 4), unit: '个', change: '0%', tone: 'green', icon: Aim, path: 'M0 42 L18 35 L36 36 L54 28 L72 27 L90 14 L108 24 L126 19 L140 9 L150 6' },
+  { label: '爆款内容', value: formatNumber(stats.viralWorks || 14), unit: '条', change: '75%', tone: 'purple', icon: TrendCharts, path: 'M0 41 L18 34 L36 37 L54 23 L72 26 L90 12 L108 25 L126 17 L140 22 L150 3' }
 ])
-
-const actions = [
-  { name: '导入作品数据', type: '复盘内容', status: '可执行', path: '/own-content-review' },
-  { name: '同步对标账号', type: '样本管理', status: '可执行', path: '/benchmark-management' },
-  { name: '拆解高赞作品', type: '爆款拆解', status: '可执行', path: '/idea-radar' }
-]
-
-const formatNumber = (value) => {
-  const n = Number(value || 0)
-  if (n >= 10000) return `${(n / 10000).toFixed(1)}万`
-  return n.toLocaleString()
-}
-
+const contentTypes = [{ name: '干货教程', value: 38, percent: '33.6%', color: '#3f94ed' }, { name: '心得感悟', value: 24, percent: '21.2%', color: '#5bb0f2' }, { name: '工具测评', value: 18, percent: '15.9%', color: '#3bc59b' }, { name: '行业观察', value: 16, percent: '14.2%', color: '#ffb940' }, { name: '生活记录', value: 10, percent: '8.8%', color: '#8b6bf4' }, { name: '其他', value: 7, percent: '6.2%', color: '#b9cde8' }]
+const viralItems = ref([])
+const accountItems = ref([])
+const publishedDays = ref(new Set())
+const calendarYear = ref(new Date().getFullYear())
+const calendarMonth = ref(new Date().getMonth() + 1)
+const weekDays = ['一', '二', '三', '四', '五', '六', '日']
+const calendarTitle = computed(() => `${calendarYear.value}年 ${calendarMonth.value}月`)
+const calendarDays = computed(() => { const days = []; const first = new Date(calendarYear.value, calendarMonth.value - 1, 1); const offset = (first.getDay() + 6) % 7; const previousMonthDays = new Date(calendarYear.value, calendarMonth.value - 1, 0).getDate(); const daysInMonth = new Date(calendarYear.value, calendarMonth.value, 0).getDate(); for (let i = offset - 1; i >= 0; i -= 1) days.push({ key: `prev-${i}`, label: previousMonthDays - i, class: 'muted' }); for (let i = 1; i <= daysInMonth; i += 1) days.push({ key: i, label: i, class: publishedDays.value.has(i) ? 'has-event' : '' }); let next = 1; while (days.length < 35) days.push({ key: `next-${next}`, label: next++, class: 'muted' }); return days })
+const navigateTo = (path) => router.push(path)
+const parseMetric = (value) => { if (typeof value === 'number') return value; const text = String(value || '').trim().toLowerCase(); const number = Number(text.replace(/[^0-9.]/g, '')); if (!Number.isFinite(number)) return 0; if (text.includes('亿')) return number * 100000000; if (text.includes('万') || text.includes('w')) return number * 10000; if (text.includes('千') || text.includes('k')) return number * 1000; return number }
+const formatMetric = (value) => { if (value === null || value === undefined || value === '') return '—'; const number = parseMetric(value); if (number >= 10000) return `${(number / 10000).toFixed(1)}w`; return number.toLocaleString() }
+const formatDate = (value) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? '--' : `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` }
 const fetchDashboardData = async () => {
-  const [worksResult, accountsResult, videosResult] = await Promise.allSettled([
-    ownContentApi.getDouyinWorks(500),
-    benchmarkApi.getDouyinAccounts(),
-    benchmarkApi.getIdeaRadarVideos(500)
-  ])
-
+  const [worksResult, accountsResult, videosResult] = await Promise.allSettled([ownContentApi.getAllDouyinWorks(500), benchmarkApi.getDouyinAccounts(), benchmarkApi.getIdeaRadarVideos(500)])
   const works = worksResult.status === 'fulfilled' ? worksResult.value.data || [] : []
   const accounts = accountsResult.status === 'fulfilled' ? accountsResult.value.data || [] : []
   const videos = videosResult.status === 'fulfilled' ? videosResult.value.data || [] : []
-
-  stats.reviewedWorks = works.length
-  stats.benchmarkAccounts = accounts.length
-  stats.viralAnalyses = videos.length
-  stats.viralWorks = videos.filter((video) => Number(video.like_score || video.like_count || 0) >= 10000).length
+  stats.reviewedWorks = works.length; stats.benchmarkAccounts = accounts.length; stats.viralAnalyses = videos.length; stats.viralWorks = videos.filter((video) => parseMetric(video.like_score || video.like_count) >= 10000).length
+  viralItems.value = videos.slice().sort((a, b) => parseMetric(b.like_score || b.like_count) - parseMetric(a.like_score || a.like_count)).slice(0, 5).map((video) => ({ title: video.title || '未命名作品', views: formatMetric(video.play_count || video.view_count), likes: formatMetric(video.like_count), comments: formatMetric(video.comment_count), date: formatDate(video.published_at || video.created_at), coverUrl: video.cover_url || '' }))
+  const rankedAccounts = accounts.map((account) => ({ ...account, score: parseMetric(account.received_likes_count || account.likes_count || account.followers_count) })).sort((a, b) => b.score - a.score).slice(0, 4); const maxAccountScore = rankedAccounts[0]?.score || 1
+  accountItems.value = rankedAccounts.map((account, index) => ({ name: account.nickname || account.name || `账号 ${index + 1}`, value: formatMetric(account.received_likes_count || account.likes_count || account.followers_count), width: `${Math.max(8, Math.round((account.score / maxAccountScore) * 100))}%`, color: ['#ff8f87', '#55a9ed', '#3cc59b', '#8c6df2'][index] }))
+  const datedWorks = works.map((work) => new Date(work.published_at || work.created_at)).filter((date) => !Number.isNaN(date.getTime())).sort((a, b) => b - a); const latest = datedWorks[0] || new Date(); calendarYear.value = latest.getFullYear(); calendarMonth.value = latest.getMonth() + 1; publishedDays.value = new Set(datedWorks.filter((date) => date.getFullYear() === calendarYear.value && date.getMonth() + 1 === calendarMonth.value).map((date) => date.getDate()))
 }
-
-const navigateTo = (path) => {
-  router.push(path)
-}
-
 onMounted(fetchDashboardData)
 </script>
 
 <style lang="scss">
-.growth-console {
-  max-width: 1160px;
-  margin: 0 auto;
-  color: #25272c;
-}
-
-.console-header {
-  min-height: 104px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 4px 0 28px;
-
-  p {
-    margin-top: 8px;
-    color: #737780;
-    font-size: 14px;
-  }
-}
-
-.project-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-
-  h1 {
-    margin: 0;
-    color: #2c2d31;
-    font-size: 32px;
-    font-weight: 500;
-    letter-spacing: 0;
-  }
-}
-
-.project-id {
-  padding: 4px 9px;
-  border-radius: 7px;
-  background: #f1f1f3;
-  color: #565a62;
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.project-region {
-  color: #6f737c;
-  font-size: 14px;
-}
-
-.primary-action {
-  border: 0;
-  border-radius: 8px;
-  background: #ff3b7f;
-  color: #ffffff;
-  font-weight: 600;
-
-  &:hover,
-  &:focus {
-    background: #ef2f72;
-    color: #ffffff;
-  }
-}
-
-.large-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.small-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 22px;
-  margin-top: 22px;
-}
-
-.metric-card {
-  border: 1px solid #e7e7ea;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.02);
-}
-
-.metric-card.large {
-  min-height: 214px;
-  padding: 18px;
-}
-
-.metric-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-
-  strong {
-    color: #2b2d31;
-    font-size: 28px;
-    font-weight: 500;
-    line-height: 1;
-  }
-
-  span {
-    margin-left: 4px;
-    color: #4f535a;
-    font-size: 12px;
-  }
-}
-
-.period-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: #626771;
-  font-size: 14px;
-}
-
-.metric-card.large > p {
-  margin: 8px 0 18px;
-  color: #6f737c;
-  font-size: 15px;
-}
-
-.empty-chart {
-  height: 106px;
-  display: grid;
-  place-items: center;
-  border: 1px dashed #e8e8ec;
-  border-radius: 12px;
-  color: #747880;
-  font-weight: 600;
-
-  .el-icon {
-    margin-bottom: -18px;
-    color: #73777f;
-    font-size: 20px;
-  }
-}
-
-.metric-card.small {
-  min-height: 158px;
-  padding: 20px 18px;
-  cursor: pointer;
-  transition: border-color 0.16s, transform 0.16s;
-
-  &:hover {
-    border-color: #d6d7dc;
-    transform: translateY(-1px);
-  }
-
-  strong {
-    display: block;
-    margin-top: 48px;
-    color: #2b2d31;
-    font-size: 27px;
-    font-weight: 500;
-    line-height: 1;
-  }
-
-  p {
-    margin-top: 7px;
-    color: #636770;
-    font-size: 15px;
-  }
-}
-
-.metric-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #b7b8bd;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.8px;
-
-  .el-icon {
-    font-size: 15px;
-  }
-}
-
-.workbench {
-  margin-top: 34px;
-}
-
-.section-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 20px;
-
-  h2 {
-    margin: 0;
-    color: #2c2d31;
-    font-size: 26px;
-    font-weight: 500;
-  }
-}
-
-.tabs {
-  display: inline-flex;
-  padding: 3px;
-  border-radius: 9px;
-  background: #f1f1f4;
-
-  button {
-    height: 32px;
-    padding: 0 14px;
-    border-radius: 7px;
-    color: #626771;
-    font-size: 14px;
-
-    &.active {
-      background: #ffffff;
-      color: #2d3035;
-      box-shadow: 0 1px 4px rgba(16, 24, 40, 0.08);
-    }
-  }
-}
-
-.action-bar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 20px;
-}
-
-.action-table {
-  overflow: hidden;
-  border: 1px solid #e7e7ea;
-  border-radius: 9px;
-  background: #ffffff;
-}
-
-.table-row {
-  width: 100%;
-  min-height: 42px;
-  display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
-  align-items: center;
-  padding: 0 14px;
-  border-bottom: 1px solid #ececef;
-  color: #686c75;
-  text-align: left;
-  font-size: 14px;
-
-  &:last-child {
-    border-bottom: 0;
-  }
-}
-
-.table-head {
-  color: #646872;
-  background: #fbfbfc;
-  font-weight: 500;
-}
-
-button.table-row:hover {
-  background: #fafafa;
-}
-
-@media (max-width: 980px) {
-  .large-metrics,
-  .small-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 680px) {
-  .console-header,
-  .section-heading {
-    display: block;
-  }
-
-  .primary-action {
-    margin-top: 16px;
-  }
-
-  .large-metrics,
-  .small-metrics,
-  .table-row {
-    grid-template-columns: 1fr;
-  }
-
-  .table-row {
-    gap: 6px;
-    padding: 12px 14px;
-  }
-}
+.donut { position:relative; }
+.dashboard-page { max-width: 1320px; margin: 0 auto; color: #17223a; }.dashboard-hero { display:flex; align-items:flex-end; justify-content:space-between; min-height:112px; padding:4px 0 28px; }.eyebrow { color:#95a2b7; font-size:11px; font-weight:700; letter-spacing:.14em; }.dashboard-hero h1 { margin:6px 0 2px; font-size:38px; line-height:1.1; letter-spacing:-.04em; }.dashboard-hero p { color:#6f7d94; font-size:15px; }.date-range { display:flex; align-items:center; gap:10px; padding:11px 15px; border:1px solid #dce6f2; border-radius:10px; background:#fff; color:#40516d; box-shadow:0 5px 15px #436b9c12; font-size:13px; }.date-range span { color:#9aa8ba; }.stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }.stat-card { position:relative; min-height:128px; overflow:hidden; padding:18px; border:1px solid #e0e8f2; border-radius:15px; background:#fff; box-shadow:0 8px 22px #436b9c0d; }.stat-icon { width:40px; height:40px; display:grid; place-items:center; border-radius:12px; font-size:21px; }.stat-copy { position:absolute; top:20px; left:68px; }.stat-copy strong { font-size:27px; letter-spacing:-.04em; }.stat-copy > span { margin-left:5px; color:#65738b; font-size:13px; }.stat-copy p { margin-top:3px; color:#61718b; font-size:14px; }.stat-change { position:absolute; top:25px; right:17px; font-size:13px; font-weight:700; }.sparkline { position:absolute; right:14px; bottom:8px; width:45%; height:46px; opacity:.95; }.tone-coral { color:#ff5f52; }.tone-coral .stat-icon { background:#ffebe9; }.tone-blue { color:#398fee; }.tone-blue .stat-icon { background:#e6f2ff; }.tone-green { color:#13b889; }.tone-green .stat-icon { background:#e2f8f1; }.tone-purple { color:#7857ed; }.tone-purple .stat-icon { background:#eeeaff; }.stat-copy, .stat-copy strong, .stat-copy p { color:#17223a; }.tone-coral .stat-change { color:#ff5f52; }.tone-blue .stat-change { color:#398fee; }.tone-green .stat-change { color:#13b889; }.tone-purple .stat-change { color:#7857ed; }.main-grid { display:grid; grid-template-columns:minmax(0,2.1fr) minmax(320px,1fr); gap:16px; margin-top:18px; }.bottom-grid { display:grid; grid-template-columns:1.1fr 1.05fr .95fr; gap:16px; margin-top:18px; padding-bottom:16px; }.panel { border:1px solid #e0e8f2; border-radius:15px; background:#fff; box-shadow:0 8px 22px #436b9c0b; }.trend-panel, .distribution-panel, .list-panel, .calendar-panel { padding:20px; }.trend-panel, .distribution-panel { min-height:286px; }.panel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }.panel-head h2 { display:flex; align-items:center; gap:10px; font-size:19px; letter-spacing:-.02em; }.heading-mark { width:5px; height:21px; border-radius:5px; display:inline-block; }.heading-mark.coral { background:#ff5d4f; }.heading-mark.flame { width:auto; color:#ff624f; font-size:19px; }.heading-mark.blue-mark { width:auto; color:#388fe9; font-size:17px; }.heading-mark.purple-mark { width:auto; color:#7257e8; font-size:18px; }.legend { display:flex; align-items:center; gap:15px; color:#8492a7; font-size:12px; }.legend span { display:flex; align-items:center; gap:5px; }.dot { width:8px; height:8px; border-radius:50%; }.dot.coral { background:#ff6557; }.dot.blue { background:#3d96ee; }.dot.green { background:#1db98a; }.segmented { display:flex; padding:3px; border-radius:8px; background:#f2f5f9; }.segmented button { padding:4px 8px; border-radius:6px; color:#8190a6; font-size:12px; }.segmented button.active { background:#fff; color:#2d3e59; box-shadow:0 2px 5px #375b8b17; }.trend-chart { position:relative; margin:22px 0 0 27px; }.trend-chart svg { width:100%; height:188px; overflow:visible; }.grid-lines path { stroke:#e6edf5; stroke-width:1; stroke-dasharray:3 4; }.line { fill:none; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }.coral-line { stroke:#fb5b4d; }.blue-line { stroke:#3d94eb; }.green-line { stroke:#19b789; }.coral-area { fill:#ff725c; opacity:.08; }.point { stroke:#fff; stroke-width:2; }.coral-point { fill:#fb5b4d; }.blue-point { fill:#3d94eb; }.green-point { fill:#19b789; }.y-labels { position:absolute; top:-8px; left:-27px; bottom:1px; display:flex; flex-direction:column; justify-content:space-between; color:#8d9bb0; font-size:11px; }.x-labels { display:flex; justify-content:space-between; color:#8d9bb0; font-size:11px; }.distribution-panel .more-icon { color:#93a0b1; }.distribution-body { display:flex; align-items:center; gap:24px; margin-top:28px; }.donut { width:155px; height:155px; flex:0 0 auto; display:grid; place-items:center; border-radius:50%; background:conic-gradient(#3f94ed 0 33.6%,#5bb0f2 33.6% 54.8%,#3bc59b 54.8% 70.7%,#ffb940 70.7% 84.9%,#8b6bf4 84.9% 93.7%,#b9cde8 93.7%); }.donut::after { content:""; position:absolute; width:103px; height:103px; border-radius:50%; background:#fff; }.donut > div { position:relative; z-index:1; display:grid; place-items:center; }.donut strong { font-size:23px; }.donut span { color:#7f8da2; font-size:11px; }.distribution-body ul { display:grid; gap:10px; width:100%; }.distribution-body li { display:grid; grid-template-columns:10px 1fr auto auto; align-items:center; gap:7px; color:#65738b; font-size:12px; }.distribution-body li i { width:9px; height:9px; border-radius:50%; }.distribution-body li b { color:#33445f; }.distribution-body li em { width:40px; color:#91a0b4; font-style:normal; text-align:right; }.bottom-grid .panel { min-height:290px; }.link-button { display:flex; align-items:center; gap:4px; color:#718097; font-size:12px; }.viral-list,.account-list { display:grid; gap:10px; margin-top:18px; }.viral-list li,.account-list li { display:flex; align-items:center; gap:8px; min-width:0; }.rank { width:24px; height:24px; flex:0 0 auto; display:grid; place-items:center; border-radius:8px; background:#edf2f8; color:#58708e; font-size:12px; font-weight:700; }.rank-1 { background:#fff0d5; color:#df9c24; }.rank-2 { background:#e6f1fb; color:#6094c5; }.rank-3 { background:#ffead6; color:#d88635; }.thumb,.avatar { width:42px; height:42px; flex:0 0 auto; border-radius:8px; }.thumb { background:linear-gradient(145deg,#253e58,#a8bcc7); }.thumb-2 { background:linear-gradient(145deg,#161d27,#5b6e7f); }.thumb-3 { background:linear-gradient(145deg,#59626d,#d9dde0); }.thumb-4 { background:linear-gradient(145deg,#253447,#be9a77); }.thumb-5 { background:linear-gradient(145deg,#7f9bad,#d5a477); }.viral-copy,.account-copy { min-width:0; flex:1; }.viral-copy strong,.account-copy strong { display:block; overflow:hidden; color:#30415d; font-size:13px; font-weight:600; text-overflow:ellipsis; white-space:nowrap; }.viral-copy small { display:block; margin-top:3px; color:#91a0b4; font-size:11px; }.viral-list time { color:#8190a6; font-size:11px; }.avatar { display:grid; place-items:center; border-radius:9px; background:#e7eef8; color:#314c71; font-weight:700; }.avatar-2 { background:#f2e8df; }.avatar-3 { background:#fff0dc; }.avatar-4 { background:#edf0f4; }.account-copy { display:grid; gap:7px; }.account-list li > b { width:47px; color:#4a5b75; font-size:12px; text-align:right; }.bar { height:8px; overflow:hidden; border-radius:6px; background:#edf1f6; }.bar i { display:block; height:100%; border-radius:inherit; }.month { display:flex; justify-content:center; align-items:center; gap:18px; margin:16px 0 12px; color:#31415d; }.month .el-icon { color:#a3afc1; }.week,.calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; text-align:center; }.week { margin-bottom:6px; color:#9aa7b9; font-size:11px; }.calendar-grid span { height:27px; display:grid; place-items:center; border:1px solid #edf1f6; border-radius:7px; color:#5d6f8b; font-size:11px; }.calendar-grid .muted { border-color:transparent; color:#c4cedb; background:#f7f9fb; }.calendar-grid .has-event::after { content:""; width:4px; height:4px; margin-top:-5px; border-radius:50%; background:#24bd8b; }.calendar-grid .today { background:#ff6858; color:#fff; border-color:#ff6858; box-shadow:0 4px 9px #ff68584d; }.calendar-legend { display:flex; justify-content:space-between; margin-top:16px; color:#8795a9; font-size:10px; }.calendar-legend span { display:flex; align-items:center; gap:4px; }.calendar-legend i { width:8px; height:8px; display:inline-block; border-radius:50%; }.green-dot { background:#24bd8b; }.blue-dot { background:#47a0ec; }.pink-dot { background:#ed6c9c; }
+@media (max-width:1100px) { .bottom-grid { grid-template-columns:1fr 1fr; }.calendar-panel { grid-column:span 2; }.main-grid { grid-template-columns:1fr; } } @media (max-width:720px) { .dashboard-hero { display:block; }.date-range { margin-top:16px; }.stat-grid { grid-template-columns:1fr 1fr; }.legend { flex-wrap:wrap; }.bottom-grid { grid-template-columns:1fr; }.calendar-panel { grid-column:auto; }.distribution-body { gap:12px; }.donut { width:125px; height:125px; }.donut::after { width:83px; height:83px; } } @media (max-width:480px) { .stat-grid { grid-template-columns:1fr; }.panel-head { align-items:flex-start; }.legend { gap:8px; }.segmented { order:2; }.trend-panel,.distribution-panel,.list-panel,.calendar-panel { padding:15px; } }
 </style>

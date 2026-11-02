@@ -49,6 +49,7 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.pytest-browser-engine*/
 cover/
 
 # Translations
@@ -182,12 +183,24 @@ package-lock.json
 
 # Playwright browser cache
 ms-playwright/
+.sau-cache/
 
 # database
 db/database.db
+db/database.db-*
+db/backups/
+**/*.cipher.json
+**/*.cipher.json.tmp
+**/*.encrypting-*
 
 # 临时文件夹
 cookiesFile
 uploadFile
 videoFile
+release-cli/
 
+
+# Local validation and build caches
+.validation-data/
+.pytest-*/
+.cache/

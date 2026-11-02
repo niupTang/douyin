@@ -1,3 +1,6 @@
+import json
+
+
 def _metric(video, key):
     try:
         return float(video.get(key) or 0)
@@ -64,3 +67,13 @@ def review_published_content(videos):
         "suggestions": suggestions,
         "videos": videos,
     }
+
+
+def parse_analysis(video):
+    value = video.get("analysis_json")
+    if not value:
+        return None
+    try:
+        return json.loads(value) if isinstance(value, str) else value
+    except (TypeError, ValueError):
+        return None

@@ -1,5 +1,6 @@
 import json
-import sqlite3
+from backend_app.common import sqlite as sqlite3
+from contextlib import nullcontext
 from pathlib import Path
 
 
@@ -212,19 +213,21 @@ def list_video_urls(db_path, account_id):
     return [row[0] for row in rows if row and row[0]]
 
 
-def upsert_account(db_path, homepage_url, normalize_url):
+def upsert_account(db_path, homepage_url, normalize_url, *, connection=None):
     homepage_url = normalize_url(homepage_url)
     if not homepage_url:
         raise ValueError("无效的抖音用户主页链接")
-    ensure_tables(db_path)
-    with sqlite3.connect(Path(db_path)) as conn:
+    if connection is None:
+        ensure_tables(db_path)
+    with (sqlite3.connect(Path(db_path)) if connection is None else nullcontext(connection)) as conn:
         cursor = conn.cursor()
         cursor.execute('''
         INSERT INTO douyin_benchmark_accounts (homepage_url, status)
         VALUES (?, 'pending')
         ON CONFLICT(homepage_url) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
         ''', (homepage_url,))
-        conn.commit()
+        if connection is None:
+            conn.commit()
         row = cursor.execute(
             "SELECT id FROM douyin_benchmark_accounts WHERE homepage_url = ?",
             (homepage_url,)
@@ -470,9 +473,10 @@ def delete_account_cascade(db_path, account_id):
     }
 
 
-def save_sync(db_path, account_id, data):
-    ensure_tables(db_path)
-    with sqlite3.connect(Path(db_path)) as conn:
+def save_sync(db_path, account_id, data, *, connection=None):
+    if connection is None:
+        ensure_tables(db_path)
+    with (sqlite3.connect(Path(db_path)) if connection is None else nullcontext(connection)) as conn:
         cursor = conn.cursor()
         stats = {
             "inserted": 0,
@@ -553,7 +557,8 @@ def save_sync(db_path, account_id, data):
           AND (video_url LIKE '%source=Baiduspider%' OR title LIKE '热门%')
         ''', (account_id,))
         stats["deleted_dirty"] = cursor.rowcount if cursor.rowcount > 0 else 0
-        conn.commit()
+        if connection is None:
+            conn.commit()
     return stats
 
 

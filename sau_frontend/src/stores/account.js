@@ -17,6 +17,20 @@ export const useAccountStore = defineStore('account', () => {
   const setAccounts = (accountsData) => {
     // 转换后端返回的数据格式为前端使用的格式
     accounts.value = accountsData.map(item => {
+      if (!Array.isArray(item)) {
+        return {
+          id: item.id,
+          type: item.type,
+          filePath: item.filePath,
+          name: item.name || item.remark_name || item.display_name || item.userName,
+          displayName: item.display_name,
+          remarkName: item.remark_name,
+          platformUserId: item.platform_user_id,
+          status: item.status === 1 ? '正常' : '异常',
+          platform: platformTypes[item.type] || '未知',
+          avatar: '/vite.svg'
+        }
+      }
       return {
         id: item[0],
         type: item[1],

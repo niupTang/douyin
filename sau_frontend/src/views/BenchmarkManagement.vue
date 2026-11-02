@@ -2,42 +2,14 @@
   <div class="benchmark-management">
     <div class="page-header">
       <h1>抖音对标管理</h1>
+      <div class="header-actions">
+        <el-button @click="router.push('/benchmark-search')">搜索对标</el-button>
+        <el-button type="primary" @click="piDrawerVisible = true">AI 分析</el-button>
+      </div>
     </div>
 
-    <el-card shadow="never" class="agent-card">
-      <template #header><div class="card-header"><span>PI Agent</span><el-button size="small" @click="savePiSettings">保存模型配置</el-button></div></template>
-      <el-form label-width="90px">
-        <div class="auto-options">
-          <el-form-item label="Base URL"><el-input v-model="piSettings.baseUrl" style="width: 280px" /></el-form-item>
-          <el-form-item label="模型"><el-select v-model="piSettings.model" style="width: 210px"><el-option label="DeepSeek V4 Flash" value="deepseek-v4-flash" /><el-option label="DeepSeek V4 Pro" value="deepseek-v4-pro" /></el-select></el-form-item>
-          <el-form-item label="API Key"><el-input v-model="piSettings.apiKey" type="password" show-password style="width: 260px" placeholder="仅保存在本机安全存储" /></el-form-item>
-        </div>
-      </el-form>
-      <div class="add-row">
-        <el-input v-model="piPrompt" placeholder="例如：搜索 50 条个人成长内容，并总结最常见的开头钩子" @keyup.enter="runPiAgent" />
-        <el-button type="primary" :loading="piRunning" @click="runPiAgent">运行 Agent</el-button>
-      </div>
-      <el-alert v-if="piResult" :title="piResult" type="success" :closable="false" class="agent-result" />
-    </el-card>
 
-    <el-card shadow="never" class="search-card">
-      <template #header><div class="card-header"><span>内容搜索</span><div><el-button size="small" @click="openDouyinLogin">打开抖音窗口</el-button><el-button size="small" type="primary" plain @click="syncDouyinSession">验证完成并同步</el-button><el-tag v-if="searchTask" :type="searchTask.status === 'success' ? 'success' : 'info'">{{ searchTask.status }}</el-tag></div></div></template>
-      <div class="add-row">
-        <el-input v-model="contentKeyword" placeholder="例如：AI 编程、个人 IP、知识付费" clearable />
-        <el-input-number v-model="contentTargetCount" :min="10" :max="100" />
-        <el-button type="primary" :loading="contentSearching" @click="startContentSearch">搜索内容</el-button>
-      </div>
-      <el-progress v-if="contentSearching" :percentage="Math.min(99, Math.round((contentResults.length / contentTargetCount) * 100))" />
-      <el-table v-if="contentResults.length" :data="contentResults" class="search-results" style="width: 100%">
-        <el-table-column prop="source_rank" label="#" width="60" />
-        <el-table-column label="内容" min-width="420">
-          <template #default="scope"><div class="search-content"><el-image v-if="scope.row.cover_url" :src="scope.row.cover_url" fit="cover" class="search-cover" /><div><div class="search-title">{{ scope.row.title }}</div><div class="search-author">{{ scope.row.author_name || '未知作者' }} · {{ scope.row.like_count || '暂无获赞数' }}</div></div></div></template>
-        </el-table-column>
-        <el-table-column label="类型" width="90"><template #default="scope">{{ scope.row.video_type === 'note' ? '图文' : '视频' }}</template></el-table-column>
-        <el-table-column label="操作" width="120"><template #default="scope"><el-link :href="scope.row.video_url" target="_blank" type="primary">打开作品</el-link></template></el-table-column>
-      </el-table>
-      <el-empty v-else-if="!contentSearching" description="输入关键词搜索抖音内容" :image-size="80" />
-    </el-card>
+
 
     <el-card shadow="never" class="add-card">
       <el-form label-width="100px">
@@ -56,82 +28,6 @@
       </el-form>
     </el-card>
 
-    <el-card shadow="never" class="auto-card">
-      <template #header>
-        <div class="card-header">
-          <span>自动找对标</span>
-          <el-button type="primary" :loading="autoDiscovering" @click="autoDiscoverAccounts">
-            开始寻找并同步
-          </el-button>
-        </div>
-      </template>
-      <el-form label-width="100px">
-        <el-form-item label="对标关键词">
-          <el-input
-            v-model="autoKeywords"
-            type="textarea"
-            :rows="3"
-            placeholder="例如：AI 自媒体、知识付费、个人IP。多个关键词用逗号或换行分隔"
-          />
-        </el-form-item>
-        <div class="auto-options">
-          <el-form-item label="找账号数">
-            <el-input-number v-model="autoLimit" :min="1" :max="20" />
-          </el-form-item>
-          <el-form-item label="每号作品数">
-            <el-input-number v-model="autoMaxVideos" :min="1" :max="30" />
-          </el-form-item>
-        </div>
-      </el-form>
-      <el-alert
-        v-if="autoResult"
-        :title="`找到 ${autoResult.summary?.found || 0} 个账号，成功同步 ${autoResult.summary?.synced || 0} 个，作品链接 ${autoResult.summary?.videoLinks || 0} 条，失败 ${autoResult.summary?.failed || 0} 个`"
-        type="success"
-        show-icon
-        :closable="false"
-      />
-      <el-table
-        v-if="autoResult?.synced?.length"
-        :data="autoResult.synced"
-        class="auto-results"
-        style="width: 100%"
-      >
-        <el-table-column label="搜索到的账号" min-width="180">
-          <template #default="scope">
-            <div class="auto-account-name">{{ scope.row.nickname || '未识别账号' }}</div>
-            <el-link :href="scope.row.homepage_url" target="_blank" type="primary">
-              打开主页
-            </el-link>
-          </template>
-        </el-table-column>
-        <el-table-column label="已同步内容" min-width="420">
-          <template #default="scope">
-            <div v-if="scope.row.videos?.length" class="content-links">
-              <el-link
-                v-for="(video, index) in scope.row.videos.slice(0, 5)"
-                :key="video.id || video.video_url"
-                :href="video.video_url"
-                target="_blank"
-                type="primary"
-                class="content-link"
-              >
-                {{ video.title || `作品 ${index + 1}` }}
-              </el-link>
-              <span v-if="scope.row.videos.length > 5" class="more-count">
-                另有 {{ scope.row.videos.length - 5 }} 条
-              </span>
-            </div>
-            <span v-else class="empty-content">
-              {{ scope.row.contentLoadFailed ? '内容链接读取失败' : '暂未同步到内容链接' }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="链接数" width="90" align="center">
-          <template #default="scope">{{ scope.row.videos?.length || 0 }}</template>
-        </el-table-column>
-      </el-table>
-    </el-card>
-
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
@@ -140,22 +36,22 @@
         </div>
       </template>
 
-      <el-table :data="accounts" v-loading="loading" style="width: 100%">
+      <el-table :data="pagedAccounts" v-loading="loading" style="width: 100%">
         <el-table-column label="账号" min-width="220">
           <template #default="scope">
             <div class="account-cell">
               <el-avatar :src="scope.row.avatar" :size="36">{{ avatarText(scope.row) }}</el-avatar>
               <div>
                 <div class="name">{{ scope.row.nickname || '未识别账号' }}</div>
-                <el-link :href="scope.row.homepage_url" target="_blank" type="primary">
+                <el-link @click.prevent="openDouyinPreview(scope.row.homepage_url)" type="primary">
                   打开主页
                 </el-link>
               </div>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="followers_count" label="关注人" width="140" />
-        <el-table-column prop="likes_count" label="粉丝" width="140" />
+        <el-table-column prop="following_count" label="关注" width="120" />
+        <el-table-column prop="followers_count" label="粉丝" width="140" />
         <el-table-column prop="received_likes_count" label="获赞" width="140" />
         <el-table-column prop="video_count" label="作品" width="140" />
         <el-table-column prop="synced_video_count" label="已同步作品" width="120" />
@@ -190,6 +86,17 @@
       </el-table>
 
       <el-empty v-if="!loading && accounts.length === 0" description="暂无对标账号" />
+      <el-pagination
+        v-if="accounts.length"
+        v-model:current-page="accountPage"
+        v-model:page-size="accountPageSize"
+        class="account-pagination"
+        background
+        layout="total, sizes, prev, pager, next, jumper"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="accounts.length"
+        @size-change="accountPage = 1"
+      />
     </el-card>
 
     <el-card v-if="selectedAccount" shadow="never" class="videos-card">
@@ -214,7 +121,7 @@
         <el-table-column prop="like_count" label="点赞" width="100" />
         <el-table-column label="链接" min-width="220">
           <template #default="scope">
-            <el-link :href="scope.row.video_url" target="_blank" type="primary">
+            <el-link @click.prevent="openDouyinPreview(scope.row.video_url)" type="primary">
               打开作品
             </el-link>
           </template>
@@ -257,7 +164,7 @@
               />
               <div class="video-meta">
                 <div class="video-title">{{ selectedVideo.title || '暂无标题/文案' }}</div>
-                <el-link :href="selectedVideo.video_url" target="_blank" type="primary">
+                <el-link @click.prevent="openDouyinPreview(selectedVideo.video_url)" type="primary">
                   打开原作品
                 </el-link>
               </div>
@@ -367,25 +274,55 @@
         </template>
       </div>
     </el-drawer>
+
+    <el-drawer v-model="piDrawerVisible" title="AI 分析助手" size="560px" class="pi-drawer">
+      <div class="pi-settings">
+        <div class="section-title">统一模型配置</div>
+        <p class="pi-settings-tip">AI 分析助手通过后端 Agent Runtime 执行，模型和密钥统一在“Agent 模型”页面配置，当前页面不会保存或读取 API Key。</p>
+        <el-button size="small" type="primary" plain @click="openAgentModels">打开 Agent 模型设置</el-button>
+      </div>
+
+      <div class="pi-chat">
+        <div class="section-title">提问</div>
+        <el-input v-model="piPrompt" type="textarea" :rows="4" placeholder="例如：这个对标账号是爆了还是靠粉丝基数？为什么我的账号播放量低？" />
+        <div class="pi-actions">
+          <el-button type="primary" :loading="piRunning" @click="runPiAgent">运行</el-button>
+        </div>
+        <div v-if="piResult" class="pi-result">
+          <div class="section-title">结果</div>
+          <pre>{{ piResult }}</pre>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { benchmarkApi } from '@/api/benchmark'
+import { useDouyinPreview } from '@/composables/useDouyinPreview'
+
+const { openDouyinPreview } = useDouyinPreview()
 
 const homepageUrl = ref('')
-const autoKeywords = ref('')
-const autoLimit = ref(5)
-const autoMaxVideos = ref(10)
-const autoDiscovering = ref(false)
-const autoResult = ref(null)
+const router = useRouter()
 const loading = ref(false)
 const adding = ref(false)
 const syncingId = ref(null)
 const deletingId = ref(null)
 const accounts = ref([])
+const accountPage = ref(1)
+const accountPageSize = ref(10)
+const pagedAccounts = computed(() => {
+  const start = (accountPage.value - 1) * accountPageSize.value
+  return accounts.value.slice(start, start + accountPageSize.value)
+})
+watch(() => accounts.value.length, (total) => {
+  const lastPage = Math.max(1, Math.ceil(total / accountPageSize.value))
+  accountPage.value = Math.min(accountPage.value, lastPage)
+})
 const selectedAccount = ref(null)
 const videos = ref([])
 const videosLoading = ref(false)
@@ -394,15 +331,10 @@ const analysisLoading = ref(false)
 const analyzingId = ref(null)
 const selectedVideo = ref(null)
 const videoAnalysis = ref(null)
-const contentKeyword = ref('')
-const contentTargetCount = ref(50)
-const contentSearching = ref(false)
-const searchTask = ref(null)
-const contentResults = ref([])
-const piSettings = ref({ baseUrl: 'https://api.deepseek.com', model: 'deepseek-v4-flash', apiKey: '' })
 const piPrompt = ref('')
 const piResult = ref('')
 const piRunning = ref(false)
+const piDrawerVisible = ref(false)
 
 const avatarText = (account) => {
   return (account.nickname || '抖').slice(0, 1)
@@ -449,119 +381,7 @@ const addAccount = async () => {
   }
 }
 
-const autoDiscoverAccounts = async () => {
-  if (!autoKeywords.value.trim()) {
-    ElMessage.warning('请先填写对标关键词')
-    return
-  }
-  autoDiscovering.value = true
-  autoResult.value = null
-  try {
-    const response = await benchmarkApi.autoDiscoverDouyinAccounts({
-      keywords: autoKeywords.value,
-      limit: autoLimit.value,
-      maxVideos: autoMaxVideos.value
-    })
-    const result = response.data || {}
-    const syncedAccounts = await Promise.all((result.synced || []).map(async (account) => {
-      try {
-        const videoResponse = await benchmarkApi.getDouyinVideos(account.id)
-        return { ...account, videos: videoResponse.data || [] }
-      } catch (error) {
-        console.error(`读取账号 ${account.id} 的作品失败:`, error)
-        return { ...account, videos: [], contentLoadFailed: true }
-      }
-    }))
-    const videoLinks = syncedAccounts.reduce((total, account) => total + account.videos.length, 0)
-    autoResult.value = {
-      ...result,
-      synced: syncedAccounts,
-      summary: { ...(result.summary || {}), videoLinks }
-    }
-    const summary = autoResult.value.summary || {}
-    ElMessage.success(`自动同步完成：${summary.synced || 0} 个账号，${summary.videoLinks || 0} 条作品链接`)
-    await fetchAccounts()
-  } catch (error) {
-    console.error('自动找对标失败:', error)
-    ElMessage.error('自动找对标失败')
-  } finally {
-    autoDiscovering.value = false
-  }
-}
-
-const startContentSearch = async () => {
-  if (!contentKeyword.value.trim()) {
-    ElMessage.warning('请先填写内容关键词')
-    return
-  }
-  contentSearching.value = true
-  contentResults.value = []
-  try {
-    const response = await benchmarkApi.createContentSearch({ keyword: contentKeyword.value.trim(), targetCount: contentTargetCount.value })
-    const taskId = response.data?.task_id || response.data?.taskId
-    if (!taskId) throw new Error('搜索任务创建失败')
-    let finished = false
-    while (!finished) {
-      const [taskResponse, resultResponse] = await Promise.all([
-        benchmarkApi.getContentSearchTask(taskId),
-        benchmarkApi.getContentSearchResults(taskId)
-      ])
-      searchTask.value = taskResponse.data || null
-      contentResults.value = resultResponse.data || []
-      finished = ['success', 'failed', 'stopped'].includes(searchTask.value?.status)
-      if (!finished) await new Promise(resolve => setTimeout(resolve, 1200))
-    }
-    if (searchTask.value?.status === 'failed') ElMessage.error(searchTask.value.error_message || '内容搜索失败')
-    else ElMessage.success(`搜索完成，共找到 ${contentResults.value.length} 条内容`)
-  } catch (error) {
-    console.error('内容搜索失败:', error)
-    ElMessage.error(error.message || '内容搜索失败')
-  } finally {
-    contentSearching.value = false
-  }
-}
-
-const openDouyinLogin = async () => {
-  try {
-    if (!window.sunbirdDesktop?.openDouyin) {
-      ElMessage.warning('内置抖音窗口仅在 Sunbird OS 桌面版中可用')
-      return
-    }
-    await window.sunbirdDesktop.openDouyin()
-    ElMessage.success('已打开 Sunbird OS 抖音窗口')
-  } catch (error) {
-    ElMessage.error(error.message || '打开抖音验证窗口失败')
-  }
-}
-
-const syncDouyinSession = async () => {
-  try {
-    if (!window.sunbirdDesktop?.syncDouyinSession) {
-      ElMessage.warning('会话同步仅在 Sunbird OS 桌面版中可用')
-      return
-    }
-    const response = await window.sunbirdDesktop.syncDouyinSession()
-    ElMessage.success(`会话已同步，共 ${response.data?.cookieCount || 0} 个 Cookie`)
-  } catch (error) {
-    ElMessage.error(error.message || '同步抖音会话失败')
-  }
-}
-
-const loadPiSettings = async () => {
-  if (!window.sunbirdDesktop?.getPiSettings) return
-  const settings = await window.sunbirdDesktop.getPiSettings()
-  piSettings.value = { ...piSettings.value, ...settings, apiKey: '' }
-}
-
-const savePiSettings = async () => {
-  if (!window.sunbirdDesktop?.savePiSettings) {
-    ElMessage.warning('PI Agent仅在 Sunbird OS桌面版中可用')
-    return
-  }
-  await window.sunbirdDesktop.savePiSettings(piSettings.value)
-  piSettings.value.apiKey = ''
-  ElMessage.success('PI Agent模型配置已安全保存')
-}
+const openAgentModels = () => router.push('/agent-models')
 
 const runPiAgent = async () => {
   if (!piPrompt.value.trim()) return ElMessage.warning('请输入 Agent任务')
@@ -623,9 +443,6 @@ const deleteAccount = async (account) => {
       selectedVideo.value = null
       videoAnalysis.value = null
       analysisDrawerVisible.value = false
-    }
-    if (autoResult.value?.synced) {
-      autoResult.value.synced = autoResult.value.synced.filter((item) => item.id !== account.id)
     }
     await fetchAccounts()
     ElMessage.success(`已删除对标并清空 ${result.deleted_videos || 0} 条作品`)
@@ -696,22 +513,51 @@ const regenerateVideoAnalysis = async () => {
   }
 }
 
-onMounted(() => {
-  fetchAccounts()
-  loadPiSettings()
-})
+onMounted(fetchAccounts)
 </script>
 
 <style lang="scss" scoped>
 .benchmark-management {
+  .account-pagination {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
   .page-header {
     margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 
     h1 {
       margin: 0;
       font-size: 24px;
       font-weight: 600;
     }
+  }
+
+  .pi-settings {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: #f6f7f9;
+    border-radius: 6px;
+  }
+
+  .pi-chat .el-textarea { margin-bottom: 12px; }
+  .pi-actions { margin-bottom: 16px; }
+
+  .pi-result pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: #fafbfc;
+    border: 1px solid #eef0f2;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #4b5058;
   }
 
   .add-card,
@@ -734,15 +580,6 @@ onMounted(() => {
     justify-content: space-between;
   }
 
-  .auto-options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-
-  .auto-results {
-    margin-top: 12px;
-  }
 
   .search-results { margin-top: 14px; }
   .agent-result { margin-top: 14px; white-space: pre-wrap; }
@@ -751,10 +588,6 @@ onMounted(() => {
   .search-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .search-author { color: #909399; font-size: 12px; margin-top: 5px; }
 
-  .auto-account-name {
-    margin-bottom: 4px;
-    font-weight: 600;
-  }
 
   .content-links {
     display: flex;

@@ -1,4 +1,5 @@
 import asyncio
+import builtins
 import configparser
 import os
 
@@ -10,6 +11,18 @@ from utils.base_social_media import set_init_script
 from utils.log import tencent_logger, kuaishou_logger
 from pathlib import Path
 from uploader.xhs_uploader.main import sign_local
+
+
+def safe_print(*args, **kwargs):
+    try:
+        builtins.print(*args, **kwargs)
+    except UnicodeEncodeError:
+        text = " ".join(str(arg) for arg in args)
+        encoding = getattr(__import__("sys").stdout, "encoding", None) or "utf-8"
+        builtins.print(text.encode(encoding, errors="replace").decode(encoding, errors="replace"), **kwargs)
+
+
+print = safe_print
 
 async def cookie_auth_douyin(account_file):
     async with async_playwright() as playwright:

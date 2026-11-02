@@ -3,7 +3,12 @@ import json
 import os
 import re
 import sys
+from dataclasses import replace
 from pathlib import Path
+
+from backend_app.common.browser_engine import BrowserEngine, BrowserSpec, BrowserStrategyRegistry
+from backend_app.common.browser_engine.downloads import validate_download_directory
+from backend_app.common.browser_engine.shared import on_browser_worker
 
 
 def write_netscape_cookie_file(storage_state_path, output_path):
@@ -25,6 +30,7 @@ def write_netscape_cookie_file(storage_state_path, output_path):
 def download_with_ytdlp(video_url, output_dir, cookie_file, progress_callback=None, log=None):
     from yt_dlp import YoutubeDL
 
+    output_dir = validate_download_directory(output_dir)
     output_template = str(Path(output_dir) / "source.%(ext)s")
     ffmpeg_dir = os.environ.get("SAU_FFMPEG_DIR")
 
@@ -57,6 +63,8 @@ def download_with_ytdlp(video_url, output_dir, cookie_file, progress_callback=No
         "fragment_retries": 2,
         "merge_output_format": "mp4",
         "outtmpl": output_template,
+        "paths": {"home": str(output_dir), "temp": str(output_dir)},
+        "cachedir": str(output_dir / ".yt-dlp-cache"),
         "progress_hooks": [progress_hook],
     }
     if ffmpeg_dir and Path(ffmpeg_dir).exists():
@@ -77,23 +85,29 @@ def download_with_ytdlp(video_url, output_dir, cookie_file, progress_callback=No
     return candidates[0]
 
 
-async def download_with_playwright(video_url, output_path, storage_state_path=None, progress_callback=None):
-    from playwright.async_api import async_playwright
+class DouyinMediaDownloadStrategy:
+    platform = "douyin"
+    operation = "download_media"
 
-    async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(headless=True)
-        kwargs = {
-            "viewport": {"width": 1280, "height": 900},
-            "locale": "zh-CN",
-            "user_agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36"
-            ),
-        }
-        if storage_state_path and Path(storage_state_path).exists():
-            kwargs["storage_state"] = str(storage_state_path)
-        context = await browser.new_context(**kwargs)
-        page = await context.new_page()
+    def browser_spec(self, request):
+        from myUtils.douyin_benchmark import collection_browser_spec
+        from myUtils.douyin_session import resolve_storage_state
+        state = request["storage_state_path"]
+        if not state or not Path(state).is_file():
+            state = resolve_storage_state()
+        spec = collection_browser_spec(state)
+        options = dict(spec.context_options)
+        if request.get("session_storage_state") is not None:
+            options["storage_state"] = request["session_storage_state"]
+        # A headed context cannot become headless. Copy its login state into
+        # an isolated download context instead of opening a visible tab.
+        return replace(spec, headless=True, presentation=None, shared_key=None,
+                       context_options=options)
+
+    async def execute(self, context, page, request):
+        video_url = request["video_url"]
+        output_path = request["output_path"]
+        progress_callback = request["progress_callback"]
         media_urls = []
 
         def capture_response(response):
@@ -111,25 +125,46 @@ async def download_with_playwright(video_url, output_path, storage_state_path=No
         )
         media_url = current_src or (media_urls[-1] if media_urls else "")
         if not media_url:
-            await context.close()
-            await browser.close()
             raise RuntimeError("作品页没有发现可下载的视频媒体地址")
         if progress_callback:
             progress_callback(45, "备用下载：已找到视频地址")
         response = await context.request.get(media_url, headers={"Referer": video_url}, timeout=120000)
         if not response.ok:
-            await context.close()
-            await browser.close()
             raise RuntimeError(f"媒体下载失败: HTTP {response.status}")
         Path(output_path).write_bytes(await response.body())
         if progress_callback:
             progress_callback(100, "备用方式下载完成")
-        await context.close()
-        await browser.close()
-    return Path(output_path)
+        return Path(output_path)
+
+
+@on_browser_worker
+async def download_with_playwright(video_url, output_path, storage_state_path=None, progress_callback=None):
+    from playwright.async_api import async_playwright
+
+    output_path = Path(output_path)
+    validate_download_directory(output_path.parent)
+    from myUtils.douyin_session import resolve_storage_state, session_key
+    from backend_app.common.browser_engine.shared import shared_contexts
+    state = storage_state_path if storage_state_path else resolve_storage_state()
+    entry = shared_contexts.entries.get(session_key(state))
+    session_storage_state = None
+    if entry and not entry[2]["closed"]:
+        session_storage_state = await entry[1].storage_state()
+    registry = BrowserStrategyRegistry()
+    registry.register(DouyinMediaDownloadStrategy())
+    from utils.base_social_media import set_init_script
+    engine = BrowserEngine(registry, playwright_factory=async_playwright, init_context=set_init_script)
+    return await engine.run("douyin", "download_media", {
+        "video_url": video_url,
+        "output_path": output_path,
+        "storage_state_path": storage_state_path,
+        "session_storage_state": session_storage_state,
+        "progress_callback": progress_callback,
+    })
 
 
 def download_douyin_video(video_url, work_dir, *, base_dir, latest_cookie_file, progress_callback=None, log=None):
+    work_dir = validate_download_directory(work_dir)
     cookie_name = latest_cookie_file()
     storage_state = Path(base_dir) / "cookiesFile" / cookie_name if cookie_name else None
     netscape_cookie = Path(work_dir) / "cookies.txt"
@@ -156,7 +191,7 @@ def download_douyin_video(video_url, work_dir, *, base_dir, latest_cookie_file, 
             ) from fallback_error
 
 
-def transcribe_media(media_path, progress_callback=None, log=None):
+def transcribe_media(media_path, progress_callback=None, log=None, download_root=None):
     model = os.environ.get("IDEA_RADAR_WHISPER_MODEL", "base")
     language = "zh"
     device = os.environ.get("IDEA_RADAR_WHISPER_DEVICE", "cpu")
@@ -175,7 +210,10 @@ def transcribe_media(media_path, progress_callback=None, log=None):
         progress_callback(2, f"正在加载 Whisper {model} 模型")
     if log:
         log(f"loading faster-whisper model={model} device={device} compute_type={compute_type}")
-    whisper_model = WhisperModel(model, device=device, compute_type=compute_type)
+    whisper_model = WhisperModel(
+        model, device=device, compute_type=compute_type,
+        download_root=str(download_root) if download_root else None,
+    )
     if progress_callback:
         progress_callback(5, "模型加载完成，正在读取音视频")
 

@@ -70,7 +70,12 @@ class IdeaRadarPipelineTests(unittest.TestCase):
             "content_breakdown": {},
         }
 
-        sau_backend.run_idea_radar_pipeline(7, "普通人的 AI 机会")
+        with patch.object(
+            sau_backend.browser_settings_service,
+            "require_download_directory",
+            return_value=Path(sau_backend.BASE_DIR),
+        ):
+            sau_backend.run_idea_radar_pipeline(7, "普通人的 AI 机会")
 
         self.assertTrue(transcribe.called)
         analysis_prompt = run_codex.call_args.args[0]

@@ -1,5 +1,5 @@
 import json
-import sqlite3
+from backend_app.common import sqlite as sqlite3
 
 
 def _scalar(cursor, sql, params=()):

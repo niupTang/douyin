@@ -23,18 +23,29 @@ def run_login_task(platform_type, account_id, status_queue, *, login_handlers, l
         loop.close()
 
 
-def sse_stream(status_queue, *, timeout_seconds=240, idle_sleep=0.1, log=None):
+def sse_stream(
+    status_queue,
+    *,
+    timeout_seconds=240,
+    idle_sleep=0.1,
+    log=None,
+    on_close=None,
+):
     started_at = time.time()
-    while True:
-        if not status_queue.empty():
-            msg = status_queue.get()
-            yield f"data: {msg}\n\n"
-            if msg in ("200", "500") or str(msg).startswith("ERROR:"):
+    try:
+        while True:
+            if not status_queue.empty():
+                msg = status_queue.get()
+                yield f"data: {msg}\n\n"
+                if msg in ("200", "500") or str(msg).startswith("ERROR:"):
+                    break
+            elif time.time() - started_at > timeout_seconds:
+                if log:
+                    log("SSE account login timeout")
+                yield "data: 500\n\n"
                 break
-        elif time.time() - started_at > timeout_seconds:
-            if log:
-                log("SSE account login timeout")
-            yield "data: 500\n\n"
-            break
-        else:
-            time.sleep(idle_sleep)
+            else:
+                time.sleep(idle_sleep)
+    finally:
+        if on_close:
+            on_close()

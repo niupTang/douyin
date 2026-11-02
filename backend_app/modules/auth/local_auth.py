@@ -1,5 +1,5 @@
 import os
-import sqlite3
+from backend_app.common import sqlite as sqlite3
 from functools import wraps
 
 from itsdangerous import BadSignature, SignatureExpired

@@ -1,6 +1,11 @@
 import { http } from '@/utils/request'
 
 export const benchmarkApi = {
+  discoverCandidates: (data) => http.post('/benchmark/douyin/discovery-tasks', data),
+  getCandidateDiscovery: (taskId) => http.get(`/benchmark/douyin/discovery-tasks/${taskId}`),
+  importCandidate: (taskId, candidateId) => http.post(`/benchmark/douyin/discovery-tasks/${taskId}/candidates/${candidateId}/import`),
+  openDouyinPreview: (url) => http.post('/benchmark/douyin/preview', { url }, { timeout: 75000 }),
+  saveDouyinSession: () => http.post('/benchmark/douyin/session/save'),
   addDouyinAccount: (homepageUrl) => {
     return http.post('/benchmark/douyin/accounts', { homepageUrl })
   },

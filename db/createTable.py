@@ -1,9 +1,13 @@
-import sqlite3
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from backend_app.common import sqlite as sqlite3
 import json
 import os
 
 # 数据库文件路径（如果不存在会自动创建）
-db_file = './database.db'
+db_file = Path(__file__).resolve().parent / 'database.db'
 
 # 如果数据库已存在，则删除旧的表（可选）
 # if os.path.exists(db_file):
@@ -51,20 +55,6 @@ CREATE TABLE IF NOT EXISTS publish_records (
 ''')
 
 cursor.execute('''
-CREATE TABLE IF NOT EXISTS video_tasks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_type TEXT NOT NULL,
-    status TEXT NOT NULL,
-    input_files TEXT,
-    output_files TEXT,
-    params TEXT,
-    error_message TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-''')
-
-cursor.execute('''
 CREATE TABLE IF NOT EXISTS douyin_benchmark_accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     homepage_url TEXT NOT NULL UNIQUE,
@@ -74,6 +64,7 @@ CREATE TABLE IF NOT EXISTS douyin_benchmark_accounts (
     followers_count TEXT,
     following_count TEXT,
     likes_count TEXT,
+    received_likes_count TEXT,
     video_count TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
     last_sync_at DATETIME,
@@ -117,6 +108,110 @@ CREATE TABLE IF NOT EXISTS douyin_benchmark_video_analysis (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS douyin_benchmark_video_transcripts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    video_id INTEGER NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'pending',
+    stage TEXT NOT NULL DEFAULT 'pending',
+    analysis_basis TEXT NOT NULL DEFAULT 'title_only',
+    raw_transcript TEXT,
+    cleaned_transcript TEXT,
+    segments TEXT,
+    engine TEXT,
+    model TEXT,
+    language TEXT,
+    duration REAL DEFAULT 0,
+    target_direction TEXT,
+    radar_json TEXT,
+    error_message TEXT,
+    progress_percent INTEGER DEFAULT 0,
+    progress_message TEXT,
+    progress_log TEXT,
+    started_at DATETIME,
+    finished_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS douyin_own_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    user_info_id INTEGER,
+    source TEXT NOT NULL DEFAULT 'manual_import',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS douyin_own_videos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id INTEGER NOT NULL,
+    source_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    video_url TEXT,
+    published_at TEXT,
+    content_format TEXT,
+    visibility_status TEXT,
+    transcript TEXT,
+    notes TEXT,
+    raw_data TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(account_id, source_key)
+)
+''')
+
+cursor.execute('''
+CREATE UNIQUE INDEX IF NOT EXISTS idx_douyin_own_accounts_user_info
+ON douyin_own_accounts(user_info_id)
+WHERE user_info_id IS NOT NULL
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS douyin_own_video_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    video_id INTEGER NOT NULL UNIQUE,
+    play_count INTEGER,
+    completion_rate REAL,
+    five_sec_completion_rate REAL,
+    cover_click_rate REAL,
+    two_sec_bounce_rate REAL,
+    avg_play_duration REAL,
+    like_count INTEGER,
+    share_count INTEGER,
+    comment_count INTEGER,
+    collect_count INTEGER,
+    profile_visit_count INTEGER,
+    follower_delta INTEGER,
+    raw_data TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+''')
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS douyin_own_export_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_info_id INTEGER,
+    account_name TEXT,
+    status TEXT NOT NULL,
+    file_path TEXT,
+    imported_count INTEGER DEFAULT 0,
+    error_message TEXT,
+    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    finished_at DATETIME
+)
+''')
+
+cursor.execute('''
+CREATE INDEX IF NOT EXISTS idx_douyin_own_export_runs_account
+ON douyin_own_export_runs(user_info_id, id DESC)
 ''')
 
 conn.commit()

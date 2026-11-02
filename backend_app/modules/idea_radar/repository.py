@@ -1,5 +1,5 @@
 import json
-import sqlite3
+from backend_app.common import sqlite as sqlite3
 from datetime import datetime
 from pathlib import Path
 

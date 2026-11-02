@@ -4,7 +4,12 @@ import { resolve } from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',
+  cacheDir: resolve(__dirname, '../.cache/vite-frontend'),
   plugins: [vue()],
+  optimizeDeps: {
+    include: ['markdown-it', 'dompurify']
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

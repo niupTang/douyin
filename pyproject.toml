@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sunbird-mcp-cli"
+version = "0.1.1"
+description = "Command-line client for the Sunbird local MCP service"
+readme = "docs/mcp-cli-installation.md"
+requires-python = ">=3.9"
+dependencies = []
+license = "LicenseRef-Proprietary"
+classifiers = [
+  "Environment :: Console",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.scripts]
+sunbird-mcp = "mcp_cli:main"
+
+[tool.setuptools]
+py-modules = ["mcp_cli"]
+package-dir = {"" = "scripts"}
