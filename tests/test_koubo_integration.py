@@ -183,22 +183,42 @@ def test_requires_video_and_cover_before_publish_approval(tmp_path):
     assert store.get_project(project["id"])["status"] == "ready_publish"
 
 
-def test_admin_token_protects_control_plane(tmp_path):
+def make_session_client(tmp_path):
+    from itsdangerous import URLSafeTimedSerializer
+    from backend_app.modules.auth.security import configure_auth_policy
     store = KouboStore(Path(tmp_path) / "secure.db")
     store.initialize()
     app = Flask(__name__)
+    serializer = URLSafeTimedSerializer("test-session-key")
+    policy = configure_auth_policy(app, serializer, 3600, None)
     app.register_blueprint(
-        create_koubo_blueprint(store, Path(tmp_path) / "secure-files", admin_token="secret")
+        create_koubo_blueprint(store, Path(tmp_path) / "secure-files", control_auth_required=policy.auth_required)
     )
-    client = app.test_client()
+    token = serializer.dumps({"id": "license:test-user"})
+    return app.test_client(), store, token
+
+
+def test_app_session_protects_control_plane(tmp_path):
+    client, store, token = make_session_client(tmp_path)
     assert client.get("/api/koubo/projects").status_code == 401
     authorized = client.get(
-        "/api/koubo/projects", headers={"Authorization": "Bearer secret"}
+        "/api/koubo/projects", headers={"Authorization": f"Bearer {token}"}
     )
     assert authorized.status_code == 200
+    assert client.get("/api/koubo/projects?token=" + token).status_code == 401
+    assert client.get("/api/koubo/projects", headers={"Authorization": "Bearer old-koubo-token"}).status_code == 401
+    project = store.create_project({})
+    asset = store.add_asset(project["id"], "frame", "frame.png", "frame.png", 5)
+    target = tmp_path / "secure-files" / "frame.png"
+    target.parent.mkdir(exist_ok=True)
+    target.write_bytes(b"image")
+    url = f"/api/koubo/assets/{asset['id']}/content"
+    assert client.get(url).status_code == 401
+    assert client.get(url + "?token=" + token).data == b"image"
+    assert client.post(f"/api/koubo/assets/{asset['id']}/frames?token=" + token, json={"seconds": 0}).status_code == 401
 
 
-def test_admin_token_is_required_by_default(tmp_path):
+def test_session_policy_is_required_by_default(tmp_path):
     store = KouboStore(Path(tmp_path) / "secure-default.db")
     store.initialize()
     app = Flask(__name__)

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "visual-check",
+  "evidenceKind": "automated-browser",
+  "status": "fail",
+  "visualReview": "pending",
+  "artifact": {
+    "path": "E:\\social-auto-upload\\docs\\diagrams\\sunbird-system-architecture.html",
+    "sha256": "1281f7f37ba08cb12e7d6b02e4e2b6d8f2b21db4a87fb39c8b4ccd8820e82360",
+    "bytes": 713280
+  },
+  "state": {
+    "detail": "read",
+    "motion": "still"
+  },
+  "chrome": {
+    "status": "available",
+    "executable": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+  },
+  "diagnostics": [
+    {
+      "code": "viewer/visual-check-runtime",
+      "severity": "error",
+      "message": "visual-check could not complete its Chrome inspection.",
+      "subject": {
+        "artifact": "E:\\social-auto-upload\\docs\\diagrams\\sunbird-system-architecture.html"
+      },
+      "evidence": {
+        "reason": "Chrome DevTools process exit failed: Chrome closed with exit code 2147483651\nChrome process: exit code 2147483651.\nChrome stderr:\n[25784:25612:0903/150517.173:ERROR:chrome\\installer\\util\\google_update_settings_win.cc:270] Failed opening key Software\\Google\\Update\\ClientStateMedium\\{8A69D345-D564-463c-AFF1-A69D9E530F96} to set usagestats; result: 5\r\n[25784:18448:0903/150517.464:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:13580:0903/150517.465:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:18448:0903/150517.564:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:13580:0903/150517.581:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:13580:0903/150517.689:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:18448:0903/150517.712:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:13580:0903/150517.713:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:18448:0903/150517.804:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:13580:0903/150517.827:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:18448:0903/150517.888:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:13580:0903/150517.888:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:18448:0903/150517.977:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:18448:0903/150517.977:FATAL:content\\browser\\gpu\\gpu_data_manager_impl_private.cc:417] GPU process isn't usable. Goodbye."
+      },
+      "supportedFixes": [
+        "resolve the reported Chrome inspection error, then rerun visual-check"
+      ]
+    }
+  ],
+  "containment": {
+    "status": "fail",
+    "viewports": []
+  },
+  "readability": {
+    "status": "fail",
+    "minimumProjectedNodeTextPx": 6,
+    "viewports": []
+  },
+  "viewerChrome": {
+    "status": "fail",
+    "viewports": []
+  },
+  "captures": {
+    "status": "fail",
+    "screenshots": [],
+    "contactSheet": null
+  },
+  "sidecars": {
+    "receipt": "sunbird-system-architecture.visual-check.json",
+    "contactSheet": "sunbird-system-architecture.visual-check.html"
+  },
+  "error": "Chrome DevTools process exit failed: Chrome closed with exit code 2147483651\nChrome process: exit code 2147483651.\nChrome stderr:\n[25784:25612:0903/150517.173:ERROR:chrome\\installer\\util\\google_update_settings_win.cc:270] Failed opening key Software\\Google\\Update\\ClientStateMedium\\{8A69D345-D564-463c-AFF1-A69D9E530F96} to set usagestats; result: 5\r\n[25784:18448:0903/150517.464:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:13580:0903/150517.465:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:18448:0903/150517.564:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:13580:0903/150517.581:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:13580:0903/150517.689:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:18448:0903/150517.712:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:13580:0903/150517.713:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:18448:0903/150517.804:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:13580:0903/150517.827:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:18448:0903/150517.888:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:13580:0903/150517.888:ERROR:components\\viz\\host\\persistent_cache_sandboxed_file_factory.cc:153] Failed to open persistent cache files in directory \"C:\\Users\\sun\\AppData\\Local\\Temp\\archify-visual-check-profile-dO6zDu\\GPUPersistentCache\\DawnGraphiteCache\\LM4HLUYPEPEQCVCS7WUD63O7S5RDUCDG\", error: 0: 另一个程序正在使用此文件，进程无法访问。 (0x20)\r\n[25784:18448:0903/150517.977:ERROR:content\\browser\\gpu\\gpu_process_host.cc:1035] GPU process exited unexpectedly: exit_code=-1073741790\r\n[25784:18448:0903/150517.977:FATAL:content\\browser\\gpu\\gpu_data_manager_impl_private.cc:417] GPU process isn't usable. Goodbye."
+}

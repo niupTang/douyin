@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sunbird OS 统一 AI Runtime 架构</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #cbd5e1;
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --green: #0f766e;
+      --green-soft: #f0fdfa;
+      --purple: #7c3aed;
+      --purple-soft: #f5f3ff;
+      --orange: #c2410c;
+      --orange-soft: #fff7ed;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(145deg, #f8fafc 0%, #eef4ff 100%);
+      color: var(--ink);
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif;
+    }
+    main { width: min(1440px, calc(100% - 40px)); margin: 32px auto 64px; }
+    h1 { margin: 0 0 8px; font-size: 32px; }
+    h2 { margin: 0 0 16px; font-size: 21px; }
+    h3 { margin: 0 0 8px; font-size: 17px; }
+    p { margin: 5px 0; line-height: 1.6; }
+    .subtitle { color: var(--muted); margin-bottom: 24px; }
+    .panel {
+      margin-top: 18px;
+      padding: 22px;
+      border: 1px solid #dce4ef;
+      border-radius: 18px;
+      background: rgba(255,255,255,.94);
+      box-shadow: 0 16px 50px rgba(23,32,51,.07);
+    }
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr 52px 1.5fr 52px 1fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+    .box { border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: #fff; }
+    .frontend { background: #f8fafc; }
+    .runtime { background: var(--blue-soft); border: 2px solid var(--blue); }
+    .providers { background: var(--orange-soft); border-color: #fdba74; }
+    .arrow { display: grid; place-items: center; color: var(--blue); font-size: 34px; font-weight: 700; }
+    .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .chip { padding: 10px; border-radius: 9px; background: #fff; border: 1px solid #dbeafe; line-height: 1.4; }
+    .chip small { display: block; margin-top: 2px; color: var(--muted); }
+    .warning { margin-top: 12px; padding: 9px 11px; border-radius: 9px; background: #fee2e2; color: #991b1b; }
+    .ok { margin-top: 12px; padding: 9px 11px; border-radius: 9px; background: #dcfce7; color: #166534; }
+    .storage { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; margin-top: 18px; }
+    .database { background: var(--green-soft); border: 2px solid var(--green); }
+    .secrets { background: var(--purple-soft); border: 2px solid var(--purple); }
+    .list { display: grid; gap: 6px; margin-top: 10px; }
+    .item { padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.82); }
+    .steps { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+    .step { padding: 10px 13px; border-radius: 999px; background: #e0e7ff; white-space: nowrap; }
+    .step:nth-of-type(2) { background: #dbeafe; }
+    .step:nth-of-type(3) { background: #ede9fe; }
+    .step:nth-of-type(4) { background: #dcfce7; }
+    .step:nth-of-type(5) { background: #fef3c7; }
+    .step:nth-of-type(6) { background: #cffafe; }
+    .step:nth-of-type(7) { background: #fce7f3; }
+    .route { color: #475569; font-size: 20px; font-weight: 700; }
+    .compare { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .candidate { border: 1px solid var(--line); border-radius: 13px; padding: 15px; background: #fff; }
+    .selected { border: 2px solid var(--blue); background: var(--blue-soft); box-shadow: 0 9px 25px rgba(37,99,235,.12); }
+    .tag { display: inline-block; margin-bottom: 8px; padding: 4px 8px; border-radius: 999px; color: #fff; background: var(--blue); font-size: 12px; }
+    footer { margin-top: 18px; color: var(--muted); text-align: center; font-size: 13px; }
+    @media (max-width: 980px) {
+      .flow { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); min-height: 36px; }
+      .storage, .compare { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Sunbird OS · 统一 AI 服务层</h1>
+  <p class="subtitle">SQLite 统一配置与任务数据 · 跨平台密钥保护 · Python 内置 Agent Runtime</p>
+
+  <section class="panel">
+    <h2>方案结论</h2>
+    <div class="compare">
+      <div class="candidate">
+        <h3>A · Electron Runtime</h3>
+        <p>继续使用 Node sidecar，Python 只提供数据 API。</p>
+        <p class="subtitle">问题：生命周期、配置、日志和测试仍然分裂。</p>
+      </div>
+      <div class="candidate selected">
+        <span class="tag">已选方案</span>
+        <h3>B · Python 内置 Runtime</h3>
+        <p>结构化 Agent 与工具 Agent 共用配置、模型路由、密钥和任务系统。</p>
+        <p class="ok">前端不直连模型，Electron 不持有日常 AI 密钥。</p>
+      </div>
+      <div class="candidate">
+        <h3>C · 独立 Agent 服务</h3>
+        <p>把 Runtime 拆成额外本地服务或云端服务。</p>
+        <p class="subtitle">问题：当前桌面单机产品的部署与运维成本过高。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>目标组件架构</h2>
+    <div class="flow">
+      <div class="box frontend">
+        <h3>Vue 前端</h3>
+        <p>管理 Provider / 模型 / Agent 配置</p>
+        <p>创建 Agent 任务</p>
+        <p>轮询任务进度并显示结果</p>
+        <div class="warning">不保存密钥<br>不调用 Electron sidecar<br>不直连模型供应商</div>
+      </div>
+
+      <div class="arrow">→</div>
+
+      <div class="box runtime">
+        <h3>Python AI Service &amp; Agent Runtime</h3>
+        <div class="chips">
+          <div class="chip">Agent API<small>统一任务入口</small></div>
+          <div class="chip">Agent Runtime<small>结构化 / 工具循环</small></div>
+          <div class="chip">Model Router<small>主模型 / 备用模型</small></div>
+          <div class="chip">Tool Registry<small>直接调用领域服务</small></div>
+          <div class="chip">Secret Store<small>按需在内存解密</small></div>
+          <div class="chip">Run Repository<small>状态 / 事件 / 结果</small></div>
+        </div>
+      </div>
+
+      <div class="arrow">→</div>
+
+      <div class="box providers">
+        <h3>Provider Adapters</h3>
+        <p>Hermes Gateway</p>
+        <p>OpenAI-compatible / DeepSeek</p>
+        <p>Codex CLI</p>
+        <p>未来其他 Provider</p>
+        <div class="ok">同一配置体系<br>不同 Agent 可选不同模型</div>
+      </div>
+    </div>
+
+    <div class="storage">
+      <div class="box database">
+        <h3>SQLite · 唯一持久化配置源</h3>
+        <div class="list">
+          <div class="item"><b>app_settings</b> · 通用非敏感设置</div>
+          <div class="item"><b>ai_providers</b> · 地址、类型、能力、超时</div>
+          <div class="item"><b>ai_credentials</b> · AES-256-GCM 密文</div>
+          <div class="item"><b>ai_model_profiles</b> · 模型与推理参数</div>
+          <div class="item"><b>agent_profiles</b> · 执行策略与模型绑定</div>
+          <div class="item"><b>agent_runs / agent_run_events</b> · 任务、进度、结果</div>
+        </div>
+      </div>
+      <div class="box secrets">
+        <h3>跨平台系统安全存储</h3>
+        <div class="list">
+          <div class="item">Windows · DPAPI / Credential Manager</div>
+          <div class="item">macOS · Keychain</div>
+          <div class="item">Linux · Secret Service</div>
+        </div>
+        <p class="ok">系统安全存储仅保护主密钥；SQLite 只保存 API Key 密文。安全存储不可用时拒绝明文降级。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>统一运行数据流</h2>
+    <div class="steps">
+      <span class="step">1. 前端创建任务</span><span class="route">→</span>
+      <span class="step">2. 读取 Agent Profile</span><span class="route">→</span>
+      <span class="step">3. Secret Store 解密</span><span class="route">→</span>
+      <span class="step">4. Model Adapter 调用模型</span><span class="route">→</span>
+      <span class="step">5. Tool Registry 执行业务工具</span><span class="route">→</span>
+      <span class="step">6. 任务事件与结果写库</span><span class="route">→</span>
+      <span class="step">7. 前端读取状态</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>迁移顺序</h2>
+    <div class="steps">
+      <span class="step">数据库与密钥基础</span><span class="route">→</span>
+      <span class="step">迁移 settings.json</span><span class="route">→</span>
+      <span class="step">迁移结构化 Agent</span><span class="route">→</span>
+      <span class="step">迁移 PI 工具 Agent</span><span class="route">→</span>
+      <span class="step">删除 PI IPC 与 sidecar</span>
+    </div>
+  </section>
+
+  <footer>独立离线文件 · 不依赖本地服务或外部 CDN</footer>
+</main>
+</body>
+</html>

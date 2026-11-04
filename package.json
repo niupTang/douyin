@@ -61,7 +61,8 @@
           "sau_koubo_server.py",
           "conf.py",
           "requirements.txt",
-          "db/**/*",
+          "db/createTable.py",
+          "backend_app/**/*",
           "myUtils/**/*",
           "uploader/**/*",
           "utils/**/*",
@@ -83,10 +84,9 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+    "electronDist": "build-resources/electron-runtime",
+    "beforePack": "scripts/prepare-electron-runtime.cjs"
   },
-  "dependencies": {
-    "@earendil-works/pi-coding-agent": "^0.84.1",
-    "typebox": "^1.3.11"
-  }
+  "dependencies": {}
 }

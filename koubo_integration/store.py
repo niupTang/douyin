@@ -113,6 +113,9 @@ class KouboStore:
                 connection.execute(
                     "ALTER TABLE koubo_binding_codes ADD COLUMN device_type TEXT NOT NULL DEFAULT 'mobile'"
                 )
+            asset_columns = {row[1] for row in connection.execute("PRAGMA table_info(koubo_assets)")}
+            if "metadata" not in asset_columns:
+                connection.execute("ALTER TABLE koubo_assets ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'")
 
     @staticmethod
     def token_hash(token):
@@ -297,15 +300,15 @@ class KouboStore:
             )
         return self.get_job(job_id)
 
-    def add_asset(self, project_id, kind, storage_path, original_name, size, checksum=None):
+    def add_asset(self, project_id, kind, storage_path, original_name, size, checksum=None, metadata=None):
         asset_id = str(uuid.uuid4())
         now = utc_now()
         with self.connect() as connection:
             connection.execute(
                 """INSERT INTO koubo_assets
-                (id, project_id, kind, storage_path, original_name, size, checksum, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (asset_id, project_id, kind, storage_path, original_name, size, checksum, now),
+                (id, project_id, kind, storage_path, original_name, size, checksum, created_at, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (asset_id, project_id, kind, storage_path, original_name, size, checksum, now, json.dumps(metadata or {})),
             )
             if kind == "raw_video":
                 connection.execute(
@@ -326,6 +329,7 @@ class KouboStore:
             "size": size,
             "checksum": checksum,
             "created_at": now,
+            "metadata": metadata or {},
         }
 
     def list_assets(self, project_id):
@@ -334,14 +338,14 @@ class KouboStore:
                 "SELECT * FROM koubo_assets WHERE project_id = ? ORDER BY created_at",
                 (project_id,),
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [{**dict(row), "metadata": json.loads(row["metadata"])} for row in rows]
 
     def get_asset(self, asset_id):
         with self.connect() as connection:
             row = connection.execute(
                 "SELECT * FROM koubo_assets WHERE id = ?", (asset_id,)
             ).fetchone()
-        return dict(row) if row else None
+        return {**dict(row), "metadata": json.loads(row["metadata"])} if row else None
 
     def create_upload_session(
         self, project_id, device_id, original_name, total_size, chunk_size, total_chunks

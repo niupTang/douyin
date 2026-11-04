@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Sunbird OS 本地内容运营系统架构",
+    "locale": "zh-CN",
+    "viewBox": [1120, 760],
+    "quality_profile": "showcase"
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [40, 110],
+    "cols": 7,
+    "gapX": 18,
+    "gapY": 54,
+    "cellW": 132,
+    "cellH": 64
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "运营人员", "sublabel": "Windows 桌面", "row": 1, "col": 0 },
+    { "id": "licenseCloud", "type": "cloud", "label": "授权服务", "sublabel": "设备许可接口", "row": 0, "col": 0 },
+    { "id": "electron", "type": "frontend", "label": "Electron 桌面壳", "sublabel": "主进程与 IPC", "row": 1, "col": 1 },
+    { "id": "vue", "type": "frontend", "label": "Vue 工作台", "sublabel": "任务、素材与分析界面", "row": 1, "col": 2 },
+    { "id": "backend", "type": "backend", "label": "本地 Flask 后端", "sublabel": "127.0.0.1:5409", "row": 1, "col": 3 },
+    { "id": "modules", "type": "backend", "label": "业务模块", "sublabel": "账号、对标、口播、发布", "row": 1, "col": 4 },
+    { "id": "database", "type": "database", "label": "本地 SQLite", "sublabel": "项目与业务数据", "row": 1, "col": 5 },
+    { "id": "runtimeLogs", "type": "database", "label": "运行日志", "sublabel": "logs/backend.json", "row": 2, "col": 3 },
+    { "id": "douyin", "type": "external", "label": "抖音网页", "sublabel": "内嵌登录会话", "row": 2, "col": 1 }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Sunbird OS 桌面客户端", "wraps": ["electron", "vue"], "pad": 22 },
+    { "kind": "region", "label": "本地运行时", "wraps": ["backend", "modules", "database", "runtimeLogs"], "pad": 22 }
+  ],
+  "connections": [
+    { "from": "user", "to": "electron", "label": "操作应用", "labelDy": 61, "variant": "emphasis" },
+    { "from": "electron", "to": "vue", "label": "加载工作台", "labelDy": 61, "variant": "emphasis" },
+    { "from": "vue", "to": "backend", "label": "本地 HTTP API", "labelDy": 61, "variant": "emphasis" },
+    { "from": "backend", "to": "modules", "label": "分发业务请求", "labelDy": 61, "variant": "default" },
+    { "from": "modules", "to": "database", "label": "读写本地数据", "labelDy": 61, "variant": "default" },
+    { "from": "backend", "to": "runtimeLogs", "label": "记录诊断日志", "labelDy": 24, "variant": "default" },
+    { "from": "electron", "to": "licenseCloud", "label": "激活与刷新", "variant": "security" },
+    { "from": "electron", "to": "douyin", "label": "持久化网页登录", "labelDy": 24, "variant": "default" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "本地优先",
+      "items": ["桌面端承载 Vue 工作台并拉起本地 Flask 服务", "业务数据保留在本机 SQLite", "运行诊断写入本地 backend.json"]
+    },
+    {
+      "dot": "violet",
+      "title": "业务能力",
+      "items": ["账号管理与抖音会话同步", "内容对标、选题分析与口播工作台", "素材管理与多平台视频发布"]
+    }
+  ]
+}

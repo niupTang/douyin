@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from .tools import describe_tools as describe_mcp_tools
+from backend_app.common.tool_gateway import ToolExecutionContext, ToolExecutionError, execution_context
 
 
 def create_mcp_blueprint(mcp_tool_handlers):
@@ -27,13 +28,22 @@ def create_mcp_blueprint(mcp_tool_handlers):
         handler = handlers.get(tool_name)
         if not handler:
             return jsonify({"code": 404, "msg": "MCP 工具不存在", "data": None}), 404
+        admin = getattr(request, "current_admin", None) or {}
+        token = execution_context.set(ToolExecutionContext(
+            source="mcp", actor_id=str(admin.get("id") or "") or None,
+        ))
         try:
             return jsonify({"code": 200, "msg": "success", "data": handler(arguments)}), 200
+        except ToolExecutionError as exc:
+            return jsonify({"code": exc.status, "msg": str(exc), "data": None,
+                            "error_code": exc.code, "invocation_id": exc.invocation_id}), exc.status
         except NotImplementedError as exc:
             return jsonify({"code": 501, "msg": str(exc), "data": None}), 501
         except KeyError as exc:
             return jsonify({"code": 400, "msg": f"缺少参数：{exc}", "data": None}), 400
         except Exception as exc:
             return jsonify({"code": 500, "msg": str(exc), "data": None}), 500
+        finally:
+            execution_context.reset(token)
 
     return blueprint

@@ -1,4 +1,3 @@
-import os
 import tempfile
 from pathlib import Path
 
@@ -16,8 +15,6 @@ def validate_download_directory(value):
         raise ValueError("下载目录不存在或无法访问") from exc
     if not path.is_dir():
         raise ValueError("下载目录必须是文件夹")
-    if os.name == "nt" and path.drive.upper() == "C:":
-        raise ValueError("下载目录不能位于 C 盘，请选择 E 盘或其他非 C 盘目录")
     try:
         with tempfile.TemporaryFile(dir=path):
             pass

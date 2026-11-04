@@ -88,14 +88,16 @@ def create_benchmark_blueprint(
     @blueprint.route('/benchmark/douyin/accounts', methods=['POST'])
     def add_douyin_benchmark_account():
         data = request.get_json() or {}
-        homepage_url = data.get("homepageUrl") or data.get("homepage_url")
+        homepage_url = data.get("url") or data.get("link") or data.get("homepageUrl") or data.get("homepage_url")
         try:
             cookie_file = latest_douyin_cookie_file()
             result = sync_one_douyin_benchmark(homepage_url, cookie_file, max_videos=20)
-            return jsonify({"code": 200, "msg": "success", "data": {"id": result["id"], "sync": result["sync"]}}), 200
+            return jsonify({"code": 200, "msg": "success", "data": {"id": result["id"], "sync": result["sync"], "input_type": result.get("input_type", "profile")}}), 200
+        except ValueError as e:
+            return jsonify({"code": 400, "msg": str(e), "data": None}), 400
         except Exception as e:
             try:
-                if homepage_url:
+                if normalize_douyin_user_url(homepage_url):
                     save_douyin_benchmark_error(upsert_douyin_benchmark(homepage_url), str(e))
             except Exception:
                 pass

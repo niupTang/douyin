@@ -64,5 +64,11 @@ export const benchmarkApi = {
 
   getIdeaRadarStatus: (videoId) => {
     return http.get(`/idea-radar/douyin/videos/${videoId}/status`)
-  }
+  },
+
+  createAgentRun: (agentKey, data) => http.post(`/api/agents/${agentKey}/runs`, data),
+
+  getAgentRun: (runId) => http.get(`/api/agent-runs/${runId}`),
+
+  cancelAgentRun: (runId) => http.post(`/api/agent-runs/${runId}/cancel`)
 }

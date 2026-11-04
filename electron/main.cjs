@@ -162,6 +162,7 @@ function startBackend() {
   }
   const bundledHuggingFaceHome = getBundledHuggingFaceHome()
   if (bundledHuggingFaceHome) {
+    env.SAU_BUNDLED_HUGGINGFACE_HOME = bundledHuggingFaceHome
     env.HF_HOME = bundledHuggingFaceHome
     env.HUGGINGFACE_HUB_CACHE = path.join(bundledHuggingFaceHome, 'hub')
   }
@@ -353,13 +354,10 @@ async function syncDouyinSession() {
 }
 
 function registerDesktopIpc() {
-  ipcMain.handle('sunbird:get-pi-settings', () => loadPiSettings())
-  ipcMain.handle('sunbird:save-pi-settings', (_event, settings) => savePiSettings(settings))
-  ipcMain.handle('sunbird:pi-prompt', (_event, payload) => runPiPrompt(payload))
   ipcMain.handle('sunbird:runtime-info', () => ({ desktop: true }))
   ipcMain.handle('sunbird:choose-download-directory', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: '选择下载目录（不能选择 C 盘）',
+      title: '选择下载目录',
       properties: ['openDirectory', 'createDirectory']
     })
     return result.canceled ? null : result.filePaths[0]
@@ -511,6 +509,15 @@ async function getLicenseStatus() {
   try {
     return await installLicenseIntoBackend(state)
   } catch (error) {
+    // A running desktop can cross the offline deadline without restarting.
+    // Recover through the signed cloud refresh flow instead of asking for the code again.
+    if (error.reasonCode === 'OFFLINE_GRACE_EXPIRED' && state.refreshToken) {
+      try {
+        return await refreshLicense()
+      } catch (refreshError) {
+        error = refreshError
+      }
+    }
     return { license: { activated: true, valid: false, reasonCode: error.reasonCode || 'LICENSE_INVALID', message: error.message } }
   }
 }
@@ -550,52 +557,29 @@ function loadPiSettings() {
   }
 }
 
-function savePiSettings(settings = {}) {
-  const apiKey = String(settings.apiKey || '')
-  if (apiKey && !safeStorage.isEncryptionAvailable()) throw new Error('当前系统无法安全保存 API Key')
-  const stored = {
-    provider: 'deepseek',
-    baseUrl: String(settings.baseUrl || 'https://api.deepseek.com').replace(/\/$/, ''),
-    model: String(settings.model || 'deepseek-v4-flash'),
-    thinkingLevel: String(settings.thinkingLevel || 'off'),
-    encryptedApiKey: apiKey ? safeStorage.encryptString(apiKey).toString('base64') : undefined
-  }
-  fs.writeFileSync(getPiSettingsPath(), JSON.stringify(stored, null, 2), 'utf8')
-  return { ...stored, encryptedApiKey: undefined, apiKeyConfigured: Boolean(apiKey) }
-}
-
-function runPiPrompt(payload = {}) {
-  return new Promise((resolve, reject) => {
-    const config = loadPiSettings()
-    if (!config.apiKey) return reject(new Error('请先配置 PI Agent 的 DeepSeek API Key'))
-    const sidecar = path.join(__dirname, 'pi-agent-sidecar.mjs')
-    const child = spawn(process.execPath, [sidecar], {
-      cwd: getAppRoot(),
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe']
+async function migratePiSettingsToBackend() {
+  const config = loadPiSettings()
+  if (!config.apiKey) return { migrated: false, reason: 'no_legacy_key' }
+  const response = await fetch(`http://127.0.0.1:${BACKEND_PORT}/runtime/ai/pi-credential`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-SAU-Instance-Token': backendInstanceToken
+    },
+    body: JSON.stringify({
+      baseUrl: config.baseUrl,
+      model: config.model,
+      thinkingLevel: config.thinkingLevel,
+      apiKey: config.apiKey
     })
-    let stdout = ''
-    let stderr = ''
-    child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8') })
-    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8') })
-    child.on('error', reject)
-    child.on('close', () => {
-      try {
-        const result = JSON.parse(stdout || '{}')
-        if (!result.ok) reject(new Error(result.error || stderr || 'PI Agent运行失败'))
-        else resolve(result)
-      } catch {
-        reject(new Error(stderr || stdout || 'PI Agent返回格式无效'))
-      }
-    })
-    child.stdin.end(JSON.stringify({
-      prompt: payload.prompt,
-      authToken: payload.authToken,
-      backendPort: BACKEND_PORT,
-      config
-    }))
   })
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok || result.code !== 200) {
+    throw new Error(result.message || 'PI Agent 配置迁移失败')
+  }
+  fs.unlinkSync(getPiSettingsPath())
+  writeLog('Legacy PI Agent configuration migrated to backend AI runtime')
+  return { migrated: true }
 }
 
 process.on('uncaughtException', (error) => {
@@ -627,6 +611,7 @@ app.whenReady().then(async () => {
     dialog.showErrorBox('后端启动超时', '本地服务未能在 30 秒内启动，请查看 desktop.log。')
   }
   if (ready) {
+    try { await migratePiSettingsToBackend() } catch (error) { writeLog(`PI Agent migration failed: ${error.message}`) }
     try { await refreshLicense() } catch (error) { writeLog(`License bootstrap failed: ${error.message}`) }
   }
   createWindow()

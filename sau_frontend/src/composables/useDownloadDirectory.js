@@ -21,7 +21,7 @@ export function useDownloadDirectory() {
       if (window.sunbirdDesktop?.chooseDownloadDirectory) {
         path = await window.sunbirdDesktop.chooseDownloadDirectory()
       } else {
-        const result = await ElMessageBox.prompt('输入本机下载目录的绝对路径（不能位于 C 盘）', '选择下载目录', {
+        const result = await ElMessageBox.prompt('输入本机下载目录的绝对路径', '选择下载目录', {
           inputValue: downloadDirectory.value,
           confirmButtonText: '保存',
           cancelButtonText: '取消'

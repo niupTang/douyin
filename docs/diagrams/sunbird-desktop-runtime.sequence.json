@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Sunbird OS 桌面端关键时序",
+    "locale": "zh-CN",
+    "viewBox": [1080, 1060],
+    "quality_profile": "showcase",
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "Windows 桌面" },
+    { "id": "electron", "type": "frontend", "label": "Sunbird OS", "sublabel": "Electron + Vue" },
+    { "id": "licenseCloud", "type": "cloud", "label": "授权服务", "sublabel": "云端许可证接口" },
+    { "id": "backend", "type": "backend", "label": "本地后端", "sublabel": "Flask :5409" },
+    { "id": "validator", "type": "security", "label": "许可证验证", "sublabel": "Ed25519 本地校验" },
+    { "id": "runtimeLogs", "type": "database", "label": "运行日志", "sublabel": "backend.json" },
+    { "id": "douyin", "type": "external", "label": "抖音网页", "sublabel": "内嵌登录会话" }
+  ],
+  "segments": [
+    { "from": 150, "to": 248, "label": "启动本地运行时" },
+    { "from": 270, "to": 500, "label": "授权校验与本地安装" },
+    { "from": 530, "to": 880, "label": "受保护功能与账号会话" }
+  ],
+  "messages": [
+    { "from": "user", "to": "electron", "y": 184, "label": "启动桌面应用", "variant": "emphasis" },
+    { "from": "electron", "to": "backend", "y": 226, "label": "启动本地 Flask 服务", "variant": "emphasis" },
+    { "from": "backend", "to": "runtimeLogs", "y": 292, "label": "记录 runtime.started", "variant": "default" },
+    { "from": "electron", "to": "licenseCloud", "y": 330, "label": "POST /activate 或 /refresh", "variant": "security" },
+    { "from": "licenseCloud", "to": "electron", "y": 374, "label": "签名许可证与刷新凭据", "variant": "return" },
+    { "from": "electron", "to": "backend", "y": 420, "label": "POST /runtime/license/install", "variant": "security" },
+    { "from": "backend", "to": "validator", "y": 464, "label": "验证签名、设备与有效期", "variant": "security" },
+    { "from": "validator", "to": "backend", "y": 508, "label": "返回本地授权状态", "variant": "return" },
+    { "from": "user", "to": "electron", "y": 578, "label": "进入工作台并发起操作", "variant": "emphasis" },
+    { "from": "electron", "to": "backend", "y": 622, "label": "Bearer 令牌调用本地 API", "variant": "default" },
+    { "from": "backend", "to": "runtimeLogs", "y": 666, "label": "记录任务或失败响应", "variant": "default" },
+    { "from": "user", "to": "electron", "y": 736, "label": "发起抖音登录或同步", "variant": "emphasis" },
+    { "from": "electron", "to": "douyin", "y": 780, "label": "打开 persist:douyin 会话", "variant": "default" },
+    { "from": "electron", "to": "backend", "y": 824, "label": "POST /runtime/douyin/session", "variant": "security" },
+    { "from": "backend", "to": "runtimeLogs", "y": 868, "label": "记录同步结果", "variant": "default" }
+  ],
+  "activations": [
+    { "participant": "electron", "from": 178, "to": 850, "type": "frontend" },
+    { "participant": "backend", "from": 220, "to": 874, "type": "backend" },
+    { "participant": "licenseCloud", "from": 324, "to": 380, "type": "cloud" },
+    { "participant": "validator", "from": 458, "to": 514, "type": "security" },
+    { "participant": "runtimeLogs", "from": 264, "to": 874, "type": "database" },
+    { "participant": "douyin", "from": 774, "to": 830, "type": "external" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "本地优先运行",
+      "items": ["桌面端先启动本地 Flask 后端", "Vue 通过 Electron 承载并调用 127.0.0.1:5409", "受保护接口由本地后端执行校验"]
+    },
+    {
+      "dot": "amber",
+      "title": "诊断留痕",
+      "items": ["启动、任务和 HTTP 失败写入 backend.json", "日志文件仅保存脱敏后的诊断信息", "抖音会话由 Electron 同步给本地后端"]
+    }
+  ]
+}

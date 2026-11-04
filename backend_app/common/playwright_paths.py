@@ -33,7 +33,8 @@ def resolve_browser_directory(app_dir, environ=None):
         if not candidate:
             continue
         directory = Path(candidate).resolve()
-        if directory.drive.upper() == "C:":
+        # Installed resources are read-only inputs, not browser download caches.
+        if not packaged and directory.drive.upper() == "C:":
             continue
         if all((directory / relative).is_file() for relative in required):
             return str(directory)

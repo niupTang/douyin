@@ -8,7 +8,7 @@ for stream in (sys.stdout, sys.stderr):
 
 from conf import BASE_DIR
 from koubo_integration import KouboStore, create_koubo_blueprint, register_realtime
-from sau_backend import app, ensure_core_tables
+from sau_backend import app, ensure_core_tables, auth_required
 
 
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024 * 1024
@@ -21,7 +21,7 @@ app.register_blueprint(
     create_koubo_blueprint(
         koubo_store,
         Path(os.environ.get("KOUBO_STORAGE_ROOT") or BASE_DIR / "koubo_data"),
-        os.environ.get("KOUBO_ADMIN_TOKEN") or os.environ.get("SAU_INSTANCE_TOKEN"),
+        control_auth_required=auth_required,
     )
 )
 register_realtime(app, koubo_store)

@@ -17,6 +17,10 @@
         class="sidebar-menu"
       >
         <el-menu-item index="/">
+          <el-icon><HomeFilled /></el-icon>
+          <template #title>聊天工作台</template>
+        </el-menu-item>
+        <el-menu-item index="/overview">
           <el-icon><DataAnalysis /></el-icon>
           <template #title>增长总览</template>
         </el-menu-item>
@@ -123,7 +127,8 @@ const userStore = useUserStore()
 const isCollapse = ref(false)
 
 const pageMeta = {
-  '/': { kicker: 'Dashboard', title: '增长总览' },
+  '/': { kicker: 'Chat', title: '聊天工作台' },
+  '/overview': { kicker: 'Dashboard', title: '增长总览' },
   '/benchmark-management': { kicker: 'Benchmark', title: '抖音对标管理' },
   '/benchmark-search': { kicker: 'Search', title: '抖音搜索' },
   '/idea-radar': { kicker: 'Insight', title: '爆款拆解' },

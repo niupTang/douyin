@@ -1,31 +1,21 @@
-import json
 import os
 from pathlib import Path
 
+from backend_app.modules.ai_settings import AiSettingsService
+
 
 def settings_path(base_dir):
-    return Path(base_dir) / "settings.json"
+    """Compatibility name retained for callers; settings now live in SQLite."""
+    return Path(base_dir) / "db" / "database.db"
 
 
 def load_runtime_settings(base_dir):
-    path = settings_path(base_dir)
-    if not path.exists():
-        return {}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8-sig"))
-        return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
+    service = AiSettingsService(settings_path(base_dir))
+    return service.legacy_settings()
 
 
 def save_runtime_settings(base_dir, settings):
-    path = settings_path(base_dir)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = path.with_suffix(".json.tmp")
-    temporary_path.write_text(
-        json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    temporary_path.replace(path)
+    return AiSettingsService(settings_path(base_dir)).apply_legacy_settings(settings)
 
 
 def get_runtime_setting(base_dir, *keys, env=None, default=None):

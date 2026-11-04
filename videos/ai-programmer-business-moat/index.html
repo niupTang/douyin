@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1080, height=1920">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    @font-face{font-family:"Microsoft YaHei";src:local("Microsoft YaHei")}
+    *{box-sizing:border-box} html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:#171512}
+    body{font-family:"Archivo Black","Microsoft YaHei",sans-serif;color:#171512}
+    #root{position:relative;width:1080px;height:1920px;overflow:hidden;background:#171512}
+    .scene{position:absolute;inset:0;overflow:hidden;background:#171512}
+    .plate{position:absolute;inset:0;width:1080px;height:1920px;object-fit:cover;will-change:transform,opacity}
+    .paper-grain{position:absolute;inset:0;opacity:.13;mix-blend-mode:multiply;background-image:repeating-radial-gradient(circle at 20% 20%,rgba(25,20,16,.25) 0 1px,transparent 1px 4px);background-size:7px 7px}
+    .act-label{position:absolute;left:54px;top:58px;padding:13px 20px;background:#171512;color:#f4ebdd;font:700 25px/1 "IBM Plex Mono",monospace;letter-spacing:.08em;box-shadow:7px 7px 0 rgba(244,235,221,.85)}
+    .phrase{position:absolute;left:54px;top:188px;width:600px;min-height:190px;display:flex;flex-direction:column;align-items:flex-start;gap:18px;will-change:transform,opacity}
+    .headline{display:inline;padding:12px 18px 15px;background:#f4ebdd;color:#171512;font-size:68px;line-height:1.12;letter-spacing:-.045em;box-decoration-break:clone;-webkit-box-decoration-break:clone;box-shadow:10px 10px 0 rgba(23,21,18,.9)}
+    .headline.dark{background:#171512;color:#f4ebdd;box-shadow:10px 10px 0 #f1d34b}
+    .sub{max-width:560px;padding:11px 15px;background:#f1d34b;color:#171512;font:700 29px/1.35 "IBM Plex Mono","Microsoft YaHei",monospace;box-shadow:7px 7px 0 rgba(23,21,18,.8)}
+    .rule{position:absolute;left:54px;bottom:85px;width:600px;height:9px;background:#171512;transform-origin:left center}
+    .scene-no{position:absolute;left:54px;bottom:104px;font:700 26px/1 "IBM Plex Mono",monospace;color:#171512}
+    .safe-zone{position:absolute;right:0;top:250px;width:378px;height:1430px;pointer-events:none}
+    .safe-zone::after{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:rgba(244,235,221,.12)}
+  </style>
+</head>
+<body>
+<div data-hf-id="hf-fns4" id="root" data-composition-id="main" data-start="0" data-width="1080" data-height="1920" data-duration="160.32">
+  <section data-hf-id="hf-wv2u" id="act1" class="scene clip" data-start="0" data-duration="30.54" data-track-index="1">
+    <img data-hf-id="hf-qgd7" class="plate" src="assets/images/master-03.png" alt=""><div data-hf-id="hf-osr0" class="paper-grain"></div><div data-hf-id="hf-iqqx" class="act-label">01 / CODE PRICE</div>
+    <div data-hf-id="hf-ufec" class="phrase" data-local-start="0" data-local-end="7.01"><div data-hf-id="hf-34qb" class="headline dark">最先被淘汰的</div><div data-hf-id="hf-qzsm" class="headline">可能是只会写代码的人</div></div>
+    <div data-hf-id="hf-fo14" class="phrase" data-local-start="7.01" data-local-end="14.65"><div data-hf-id="hf-cu82" class="headline">代码正在变便宜</div><div data-hf-id="hf-s6j4" class="sub">3 天 → 3 小时</div></div>
+    <div data-hf-id="hf-7rm3" class="phrase" data-local-start="14.65" data-local-end="23.06"><div data-hf-id="hf-t237" class="headline dark">AI 暂时替代不了</div><div data-hf-id="hf-4mzu" class="headline">业务判断</div></div>
+    <div data-hf-id="hf-eafr" class="phrase" data-local-start="23.06" data-local-end="30.54"><div data-hf-id="hf-eze9" class="headline">真正值钱</div><div data-hf-id="hf-qubx" class="sub">把 AI 搬进企业，解决真实问题</div></div>
+    <div data-hf-id="hf-1w7h" class="scene-no">01—04</div><div data-hf-id="hf-a46i" class="rule"></div><div data-hf-id="hf-e85e" class="safe-zone"></div>
+  </section>
+
+  <section data-hf-id="hf-x9im" id="act2" class="scene clip" data-start="30.54" data-duration="22.74" data-track-index="1">
+    <img data-hf-id="hf-zah6" class="plate" src="assets/images/master-02.png" alt=""><div data-hf-id="hf-ouck" class="paper-grain"></div><div data-hf-id="hf-m72z" class="act-label">02 / FDE</div>
+    <div data-hf-id="hf-2y8s" class="phrase" data-local-start="0" data-local-end="8.88"><div data-hf-id="hf-7f61" class="headline dark">FDE</div><div data-hf-id="hf-gfqg" class="sub">前线部署工程师</div></div>
+    <div data-hf-id="hf-j2eu" class="phrase" data-local-start="8.88" data-local-end="15.42"><div data-hf-id="hf-djy0" class="headline">企业有问题</div><div data-hf-id="hf-ikbr" class="headline dark">模型有能力</div><div data-hf-id="hf-6szi" class="sub">但两端没有接起来</div></div>
+    <div data-hf-id="hf-wtl1" class="phrase" data-local-start="15.42" data-local-end="22.74"><div data-hf-id="hf-pl8g" class="headline">站在中间</div><div data-hf-id="hf-1cco" class="sub">把 AI 真正用起来</div></div>
+    <div data-hf-id="hf-t574" class="scene-no">05—07</div><div data-hf-id="hf-ya9a" class="rule"></div><div data-hf-id="hf-jqqu" class="safe-zone"></div>
+  </section>
+
+  <section data-hf-id="hf-3djs" id="act3" class="scene clip" data-start="53.28" data-duration="30.07" data-track-index="1">
+    <img data-hf-id="hf-olzt" class="plate" src="assets/images/master-01.png" alt=""><div data-hf-id="hf-nnfh" class="paper-grain"></div><div data-hf-id="hf-jzda" class="act-label">03 / WORKFLOW</div>
+    <div data-hf-id="hf-khck" class="phrase" data-local-start="0" data-local-end="8.88"><div data-hf-id="hf-zoem" class="headline dark">填表 · 复制 · 汇总</div><div data-hf-id="hf-wlhc" class="sub">又慢、又乱、还容易出错</div></div>
+    <div data-hf-id="hf-em8v" class="phrase" data-local-start="8.88" data-local-end="17.92"><div data-hf-id="hf-75hp" class="headline">一个统一入口</div><div data-hf-id="hf-mtyc" class="sub">AI 自动分类、整理、分析、生成报表</div></div>
+    <div data-hf-id="hf-kx23" class="phrase" data-local-start="17.92" data-local-end="25.09"><div data-hf-id="hf-w17w" class="headline dark">3 天 → 3 分钟</div><div data-hf-id="hf-b2md" class="sub">不需要高深算法</div></div>
+    <div data-hf-id="hf-3epm" class="phrase" data-local-start="25.09" data-local-end="30.07"><div data-hf-id="hf-i4kc" class="headline">这就是 AI 落地</div><div data-hf-id="hf-tqb5" class="sub">省人 · 省时间 · 提效率</div></div>
+    <div data-hf-id="hf-xjby" class="scene-no">08—11</div><div data-hf-id="hf-yokb" class="rule"></div><div data-hf-id="hf-k51v" class="safe-zone"></div>
+  </section>
+
+  <section data-hf-id="hf-v6i1" id="act4" class="scene clip" data-start="83.35" data-duration="23.84" data-track-index="1">
+    <img data-hf-id="hf-j9qs" class="plate" src="assets/images/master-04.png" alt=""><div data-hf-id="hf-o1qi" class="paper-grain"></div><div data-hf-id="hf-dvfq" class="act-label">04 / INFORMATION GAP</div>
+    <div data-hf-id="hf-c5at" class="phrase" data-local-start="0" data-local-end="7.64"><div data-hf-id="hf-0qx5" class="headline dark">参数 · 微调 · 算法</div><div data-hf-id="hf-cktv" class="sub">有价值，但属于少数人的机会</div></div>
+    <div data-hf-id="hf-43lv" class="phrase" data-local-start="7.64" data-local-end="14.03"><div data-hf-id="hf-t72q" class="headline">普通程序员的机会</div><div data-hf-id="hf-qkpc" class="sub">解决传统企业的信息差</div></div>
+    <div data-hf-id="hf-utkt" class="phrase" data-local-start="14.03" data-local-end="23.84"><div data-hf-id="hf-8y07" class="headline dark">API？AI Skill？</div><div data-hf-id="hf-hu60" class="sub">大量企业还不知道它们能做什么</div></div>
+    <div data-hf-id="hf-qj2s" class="scene-no">12—14</div><div data-hf-id="hf-z2vc" class="rule"></div><div data-hf-id="hf-kjcw" class="safe-zone"></div>
+  </section>
+
+  <section data-hf-id="hf-2ag2" id="act5" class="scene clip" data-start="107.19" data-duration="30.23" data-track-index="1">
+    <img data-hf-id="hf-nt6l" class="plate" src="assets/images/master-05.png" alt=""><div data-hf-id="hf-q19n" class="paper-grain"></div><div data-hf-id="hf-1vft" class="act-label">05 / EXECUTION</div>
+    <div data-hf-id="hf-7w5m" class="phrase" data-local-start="0" data-local-end="6.08"><div data-hf-id="hf-nati" class="headline">你眼里的基础</div><div data-hf-id="hf-puq2" class="sub">是传统企业的生产力</div></div>
+    <div data-hf-id="hf-7651" class="phrase" data-local-start="6.08" data-local-end="13.09"><div data-hf-id="hf-oig3" class="headline dark">找到重复 8 小时的流程</div><div data-hf-id="hf-ee4g" class="sub">用 API 连接孤立系统</div></div>
+    <div data-hf-id="hf-eepk" class="phrase" data-local-start="13.09" data-local-end="18.39"><div data-hf-id="hf-z04f" class="headline">AI Skill 接管</div><div data-hf-id="hf-qmb0" class="sub">资料 · 客户 · 数据</div></div>
+    <div data-hf-id="hf-r5qo" class="phrase" data-local-start="18.39" data-local-end="23.68"><div data-hf-id="hf-5of7" class="headline dark">几个月 → 几天</div><div data-hf-id="hf-g8ak" class="sub">AI 编程快速搭建系统</div></div>
+    <div data-hf-id="hf-mo25" class="phrase" data-local-start="23.68" data-local-end="30.23"><div data-hf-id="hf-hu17" class="headline">老板只问结果</div><div data-hf-id="hf-eh2v" class="sub">省多少钱？少招多少人？效率提高多少？</div></div>
+    <div data-hf-id="hf-uukc" class="scene-no">15—19</div><div data-hf-id="hf-waq5" class="rule"></div><div data-hf-id="hf-dp8l" class="safe-zone"></div>
+  </section>
+
+  <section data-hf-id="hf-82sv" id="act6" class="scene clip" data-start="137.42" data-duration="22.90" data-track-index="1">
+    <img data-hf-id="hf-h026" class="plate" src="assets/images/master-06.png" alt=""><div data-hf-id="hf-qfko" class="paper-grain"></div><div data-hf-id="hf-dnr9" class="act-label">06 / BUSINESS MOAT</div>
+    <div data-hf-id="hf-7zld" class="phrase" data-local-start="0" data-local-end="6.23"><div data-hf-id="hf-dolm" class="headline dark">不只是程序员</div><div data-hf-id="hf-cv2b" class="sub">你在创造业务结果</div></div>
+    <div data-hf-id="hf-8zlp" class="phrase" data-local-start="6.23" data-local-end="13.08"><div data-hf-id="hf-90wj" class="headline">护城河不是</div><div data-hf-id="hf-rn8v" class="sub">语言数量，也不是代码行数</div></div>
+    <div data-hf-id="hf-v9ct" class="phrase" data-local-start="13.08" data-local-end="20.10"><div data-hf-id="hf-oyab" class="headline dark">看懂业务 · 找到问题</div><div data-hf-id="hf-z9vv" class="sub">把 AI 变成企业愿意付钱的结果</div></div>
+    <div data-hf-id="hf-7gom" class="phrase" data-local-start="20.10" data-local-end="22.90"><div data-hf-id="hf-6es2" class="headline">代码越来越便宜</div><div data-hf-id="hf-4o36" class="headline dark">解决问题的人越来越贵</div></div>
+    <div data-hf-id="hf-02m5" class="scene-no">20—23</div><div data-hf-id="hf-wp16" class="rule"></div><div data-hf-id="hf-e3jm" class="safe-zone"></div>
+  </section>
+
+  <audio data-hf-id="hf-45kp" id="narration" src="narration.mp3" data-start="0" data-duration="160.32" data-track-index="10" data-volume="1"></audio>
+</div>
+<script>
+  window.__timelines=window.__timelines||{};
+  const tl=gsap.timeline({paused:true});
+  document.querySelectorAll('.scene').forEach((scene,sceneIndex)=>{
+    const start=Number(scene.dataset.start);
+    const duration=Number(scene.dataset.duration);
+    const plate=scene.querySelector('.plate');
+    const label=scene.querySelector('.act-label');
+    const rule=scene.querySelector('.rule');
+    tl.fromTo(plate,{x:-54,scale:1.035,opacity:.75},{x:0,scale:1,opacity:1,duration:.72,ease:'power3.out'},start);
+    tl.fromTo(label,{x:-120,opacity:0},{x:0,opacity:1,duration:.42,ease:'power4.out'},start+.10);
+    tl.fromTo(rule,{scaleX:0},{scaleX:1,duration:.55,ease:'power2.out'},start+.22);
+    scene.querySelectorAll('.phrase').forEach((phrase)=>{
+      const enter=start+Number(phrase.dataset.localStart);
+      const end=start+Number(phrase.dataset.localEnd);
+      const hold=Math.max(.6,end-enter-1.0);
+      tl.fromTo(phrase,{x:-70,y:34,scale:.94,opacity:0},{x:0,y:0,scale:1,opacity:1,duration:.46,ease:'power3.out'},enter+.08);
+      tl.to(phrase,{x:0,opacity:1,duration:hold,ease:'none'},enter+.54);
+      tl.to(phrase,{x:-38,opacity:0,duration:.34,ease:'power2.in'},Math.max(enter+.7,end-.38));
+    });
+    const chips=scene.querySelectorAll('.sub');
+    chips.forEach((chip,i)=>tl.fromTo(chip,{scale:.72,opacity:0},{scale:1,opacity:1,duration:.38,ease:'power3.out'},start+.48+i*.04));
+    tl.to(plate,{x:-22,scale:1.012,duration:.42,ease:'power2.in'},start+duration-.42);
+  });
+  window.__timelines['main']=tl;
+</script>
+</body>
+</html>

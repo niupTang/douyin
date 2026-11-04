@@ -1,9 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('sunbirdDesktop', {
-  getPiSettings: () => ipcRenderer.invoke('sunbird:get-pi-settings'),
-  savePiSettings: (settings) => ipcRenderer.invoke('sunbird:save-pi-settings', settings),
-  piPrompt: (payload) => ipcRenderer.invoke('sunbird:pi-prompt', payload),
   runtimeInfo: () => ipcRenderer.invoke('sunbird:runtime-info'),
   chooseDownloadDirectory: () => ipcRenderer.invoke('sunbird:choose-download-directory'),
   openDouyin: () => ipcRenderer.invoke('sunbird:open-douyin'),

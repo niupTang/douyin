@@ -1,6 +1,13 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
+import { useUserStore } from '@/stores/user'
+import { createSessionRecovery } from './sessionRecovery'
+
+const recoverSession = createSessionRecovery({
+  getDesktop: () => window.sunbirdDesktop,
+  saveSession: session => useUserStore().setSession(session)
+})
 
 const request = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5409',
@@ -11,9 +18,7 @@ const request = axios.create({
 
 request.interceptors.request.use(
   (config) => {
-    const token = config.url?.startsWith('/api/koubo')
-      ? localStorage.getItem('koubo_admin_token')
-      : localStorage.getItem('token')
+    const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -32,13 +37,28 @@ request.interceptors.response.use(
     ElMessage.error(data.message || data.msg || '请求失败')
     return Promise.reject(new Error(data.message || data.msg || '请求失败'))
   },
-  (error) => {
+  async (error) => {
     if (error.response) {
       const { status, data } = error.response
+      const offlineExpired = status === 403 && data?.data?.reasonCode === 'OFFLINE_GRACE_EXPIRED'
+      // These responses are returned before the backend executes publishing.
+      // Retry only authentication failures, never network errors or publisher errors.
+      if ((status === 401 || offlineExpired) && error.config && !error.config._sessionRetried) {
+        error.config._sessionRetried = true
+        try {
+          const session = await recoverSession({ refreshLicense: offlineExpired })
+          if (session) {
+            error.config.headers = error.config.headers || {}
+            error.config.headers.Authorization = `Bearer ${session.token}`
+            return request(error.config)
+          }
+        } catch (recoveryError) {
+          error.sessionRecoveryMessage = recoveryError.message
+        }
+      }
       if (status === 401) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('auth_mode')
-        ElMessage.error(data?.message || '请重新登录')
+        useUserStore().logout()
+        ElMessage.error(error.sessionRecoveryMessage || data?.message || '请重新登录')
         if (router.currentRoute.value.path !== '/login') {
           router.push({
             path: '/login',
@@ -46,7 +66,7 @@ request.interceptors.response.use(
           })
         }
       } else {
-        ElMessage.error(data?.message || data?.msg || '请求失败')
+        ElMessage.error(error.sessionRecoveryMessage || data?.message || data?.msg || '请求失败')
       }
     } else {
       ElMessage.error('网络连接失败')

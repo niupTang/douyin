@@ -13,7 +13,7 @@ from .scheduler import WeeklyExportScheduler
 from .service import parse_analysis
 
 
-def create_own_content_operations(get_db_path, run_structured, base_dir, log):
+def create_own_content_operations(get_db_path, get_agent_runtime, base_dir, log):
     own_content_export_scheduler = None
 
     def save_own_douyin_import(rows, account):
@@ -119,7 +119,7 @@ def create_own_content_operations(get_db_path, run_structured, base_dir, log):
         own_content_repository.set_analysis_status(get_db_path(), video_id, "running")
         try:
             peers = own_content_repository.list_analysis_peers(get_db_path(), video["account_id"])
-            result = run_structured(
+            result = get_agent_runtime().run_structured(
                 "ownContentReview",
                 build_own_video_analysis_prompt(video, peers),
                 own_video_analysis_schema(),

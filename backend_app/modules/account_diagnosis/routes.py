@@ -6,7 +6,7 @@ from . import repository, service
 
 
 def create_account_diagnosis_blueprint(
-    get_db_path, load_runtime_settings, run_structured, log
+    get_db_path, load_runtime_settings, get_agent_runtime, log
 ):
     blueprint = Blueprint("account_diagnosis", __name__)
 
@@ -81,7 +81,7 @@ def create_account_diagnosis_blueprint(
             try:
                 service.run_diagnosis_task(
                     get_db_path(), settings, target_type, target_id, report_id, progress_cb,
-
+                    runtime=get_agent_runtime(),
                 )
             except Exception as exc:
                 log(f"Account diagnosis failed for {target_type}/{target_id}: {exc}")

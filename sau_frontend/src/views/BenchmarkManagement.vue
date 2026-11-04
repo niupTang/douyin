@@ -13,11 +13,11 @@
 
     <el-card shadow="never" class="add-card">
       <el-form label-width="100px">
-        <el-form-item label="主页链接">
+        <el-form-item label="对标链接">
           <div class="add-row">
             <el-input
               v-model="homepageUrl"
-              placeholder="粘贴抖音对标账号主页链接"
+              placeholder="粘贴抖音主页、视频链接或分享文案"
               clearable
             />
             <el-button type="primary" :loading="adding" @click="addAccount">
@@ -364,18 +364,18 @@ const fetchAccounts = async () => {
 
 const addAccount = async () => {
   if (!homepageUrl.value.trim()) {
-    ElMessage.warning('请先粘贴抖音主页链接')
+    ElMessage.warning('请先粘贴抖音主页或视频链接')
     return
   }
   adding.value = true
   try {
-    await benchmarkApi.addDouyinAccount(homepageUrl.value.trim())
-    ElMessage.success('对标账号已同步')
+    const response = await benchmarkApi.addDouyinAccount(homepageUrl.value.trim())
+    ElMessage.success(response.data?.input_type === 'video' ? '视频已解析并加入对标库' : '对标账号已同步')
     homepageUrl.value = ''
     await fetchAccounts()
   } catch (error) {
     console.error('添加对标账号失败:', error)
-    ElMessage.error('添加对标账号失败')
+    ElMessage.error(error.response?.data?.msg || error.message || '解析对标链接失败')
   } finally {
     adding.value = false
   }
@@ -385,12 +385,20 @@ const openAgentModels = () => router.push('/agent-models')
 
 const runPiAgent = async () => {
   if (!piPrompt.value.trim()) return ElMessage.warning('请输入 Agent任务')
-  if (!window.sunbirdDesktop?.piPrompt) return ElMessage.warning('PI Agent仅在 Sunbird OS桌面版中可用')
   piRunning.value = true
   piResult.value = ''
   try {
-    const result = await window.sunbirdDesktop.piPrompt({ prompt: piPrompt.value.trim(), authToken: localStorage.getItem('token') || '' })
-    piResult.value = result.content || '任务已完成'
+    const created = await benchmarkApi.createAgentRun('piOperations', { prompt: piPrompt.value.trim() })
+    const runId = created.data?.id
+    if (!runId) throw new Error('Agent 任务创建失败')
+    let run = created.data
+    while (['queued', 'running'].includes(run.status)) {
+      await new Promise(resolve => setTimeout(resolve, 800))
+      const response = await benchmarkApi.getAgentRun(runId)
+      run = response.data || {}
+    }
+    if (run.status !== 'succeeded') throw new Error(run.error_message || 'PI Agent运行失败')
+    piResult.value = run.output?.content || JSON.stringify(run.output || {}, null, 2) || '任务已完成'
   } catch (error) {
     ElMessage.error(error.message || 'PI Agent运行失败')
   } finally {

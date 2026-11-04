@@ -1,6 +1,8 @@
 @echo off
 setlocal
+chcp 65001 >nul
 cd /d "%~dp0\.."
+set "PYINSTALLER_CONFIG_DIR=E:\DevCache\pyinstaller"
 
 set PYTHON=.venv\Scripts\python.exe
 if not exist "%PYTHON%" (
@@ -16,6 +18,7 @@ if errorlevel 1 set PYTHON=python
 "%PYTHON%" -m pip show pyinstaller >nul 2>nul
 if errorlevel 1 (
   "%PYTHON%" -m pip install pyinstaller
+  if errorlevel 1 exit /b 1
 )
 
 "%PYTHON%" scripts\check_license_public_key.py
@@ -26,12 +29,14 @@ if errorlevel 1 exit /b 1
   --clean ^
   --onedir ^
   --name sau_backend ^
-  --add-data "db;db" ^
+  --add-data "db/createTable.py;db" ^
   --add-data "myUtils;myUtils" ^
   --add-data "uploader;uploader" ^
   --add-data "utils;utils" ^
   --add-data "koubo_integration;koubo_integration" ^
   --add-data "sau_backend;sau_backend" ^
+  --collect-all playwright ^
+  --collect-submodules backend_app ^
   --collect-all yt_dlp ^
   --collect-all faster_whisper ^
   --collect-all ctranslate2 ^

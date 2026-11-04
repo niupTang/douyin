@@ -1,5 +1,6 @@
 @echo off
 setlocal
+chcp 65001 >nul
 cd /d "%~dp0\.."
 
 if not defined PLAYWRIGHT_BROWSERS_PATH set PLAYWRIGHT_BROWSERS_PATH=%CD%\ms-playwright
@@ -34,19 +35,18 @@ if not exist "%SOURCE%\winldd-1007\PrintDeps.exe" (
   exit /b 1
 )
 
-if exist "%TARGET%" rmdir /s /q "%TARGET%"
-mkdir "%TARGET%"
+if not exist "%TARGET%" mkdir "%TARGET%"
 
-robocopy "%SOURCE%\chromium-1169" "%TARGET%\chromium-1169" /MIR /NFL /NDL /NJH /NJS /NP
+robocopy "%SOURCE%\chromium-1169" "%TARGET%\chromium-1169" /E /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 
-robocopy "%SOURCE%\chromium_headless_shell-1169" "%TARGET%\chromium_headless_shell-1169" /MIR /NFL /NDL /NJH /NJS /NP
+robocopy "%SOURCE%\chromium_headless_shell-1169" "%TARGET%\chromium_headless_shell-1169" /E /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 
-robocopy "%SOURCE%\ffmpeg-1011" "%TARGET%\ffmpeg-1011" /MIR /NFL /NDL /NJH /NJS /NP
+robocopy "%SOURCE%\ffmpeg-1011" "%TARGET%\ffmpeg-1011" /E /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 
-robocopy "%SOURCE%\winldd-1007" "%TARGET%\winldd-1007" /MIR /NFL /NDL /NJH /NJS /NP
+robocopy "%SOURCE%\winldd-1007" "%TARGET%\winldd-1007" /E /NFL /NDL /NJH /NJS /NP
 if errorlevel 8 exit /b %errorlevel%
 
 if not exist "%TARGET%\winldd-1007\PrintDeps.exe" (

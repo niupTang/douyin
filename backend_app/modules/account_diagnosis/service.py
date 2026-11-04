@@ -29,7 +29,7 @@ def build_benchmark_facts_payload(db_path, account_id):
     return stats.build_benchmark_facts(account, videos)
 
 
-def run_diagnosis_task(db_path, settings, target_type, target_id, report_id, progress_cb):
+def run_diagnosis_task(db_path, settings, target_type, target_id, report_id, progress_cb, runtime=None):
     """在后台线程中执行诊断，逐阶段回传进度，并把结果写回报告行。"""
     try:
         progress_cb(30, "正在汇总账号数据…")
@@ -48,9 +48,12 @@ def run_diagnosis_task(db_path, settings, target_type, target_id, report_id, pro
 
         progress_cb(60, "正在计算指标…")
         progress_cb(90, "正在调用模型生成报告…")
-        report = call_hermes_structured(
-            prompt_fn(facts), schema(), settings=settings, task_name="viralAnalysis"
-        )
+        if runtime:
+            report = runtime.run_structured("accountDiagnosis", prompt_fn(facts), schema())
+        else:
+            report = call_hermes_structured(
+                prompt_fn(facts), schema(), settings=settings, task_name="viralAnalysis"
+            )
         repository.update_report_progress(
             db_path, report_id, status="success", progress=100,
             message="诊断完成", facts=facts, report=report,

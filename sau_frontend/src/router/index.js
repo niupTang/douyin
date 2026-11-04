@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import Dashboard from '../views/Dashboard.vue'
+import ChatWorkbench from '../views/ChatWorkbench.vue'
 import AccountManagement from '../views/AccountManagement.vue'
 import MaterialManagement from '../views/MaterialManagement.vue'
 import PublishCenter from '../views/PublishCenter.vue'
@@ -23,6 +24,11 @@ const routes = [
   },
   {
     path: '/',
+    name: 'ChatWorkbench',
+    component: ChatWorkbench
+  },
+  {
+    path: '/overview',
     name: 'Dashboard',
     component: Dashboard
   },

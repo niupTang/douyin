@@ -1,0 +1,12 @@
+{
+  "codexAnalysisModel": "gpt-5.6-luna",
+  "agentModels": [],
+  "taskModels": {
+    "viralAnalysis": ""
+  },
+  "hermes": {
+    "gatewayUrl": "http://47.113.185.227:8642",
+    "apiKey": "",
+    "timeout": 300
+  }
+}

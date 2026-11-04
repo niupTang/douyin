@@ -115,26 +115,36 @@ class DouyinMediaDownloadStrategy:
             if "video/" in content_type or ".mp4" in response.url:
                 media_urls.append(response.url)
 
+        from .media_transfer import download_media_candidates, media_candidates, MediaTransferError
+
         page.on("response", capture_response)
-        if progress_callback:
-            progress_callback(15, "备用下载：正在打开作品页")
-        await page.goto(video_url, wait_until="domcontentloaded", timeout=60000)
-        await page.wait_for_timeout(7000)
-        current_src = await page.evaluate(
-            "() => document.querySelector('video')?.currentSrc || document.querySelector('video')?.src || ''"
-        )
-        media_url = current_src or (media_urls[-1] if media_urls else "")
-        if not media_url:
-            raise RuntimeError("作品页没有发现可下载的视频媒体地址")
-        if progress_callback:
-            progress_callback(45, "备用下载：已找到视频地址")
-        response = await context.request.get(media_url, headers={"Referer": video_url}, timeout=120000)
-        if not response.ok:
-            raise RuntimeError(f"媒体下载失败: HTTP {response.status}")
-        Path(output_path).write_bytes(await response.body())
-        if progress_callback:
-            progress_callback(100, "备用方式下载完成")
-        return Path(output_path)
+        try:
+            if progress_callback:
+                progress_callback(15, "备用下载：正在打开作品页")
+            await page.goto(video_url, wait_until="domcontentloaded", timeout=60000)
+            for refresh in range(2):
+                await page.wait_for_timeout(7000 if not refresh else 3000)
+                current_src = await page.evaluate(
+                    "() => document.querySelector('video')?.currentSrc || document.querySelector('video')?.src || ''"
+                )
+                urls = media_candidates(current_src, media_urls)
+                try:
+                    result = await download_media_candidates(
+                        context.request, urls, video_url, output_path, progress_callback,
+                    )
+                    if progress_callback:
+                        progress_callback(100, "备用方式下载完成")
+                    return result
+                except MediaTransferError:
+                    if refresh:
+                        raise
+                    if progress_callback:
+                        progress_callback(45, "视频地址传输失败，正在刷新作品页重新获取")
+                    media_urls.clear()
+                    await page.reload(wait_until="domcontentloaded", timeout=60000)
+        finally:
+            page.remove_listener("response", capture_response)
+
 
 
 @on_browser_worker
@@ -208,11 +218,14 @@ def transcribe_media(media_path, progress_callback=None, log=None, download_root
     if progress_callback:
         progress_callback(0, "正在启动本地语音识别")
         progress_callback(2, f"正在加载 Whisper {model} 模型")
+    from .whisper_models import resolve_whisper_model
+    model_source, local_only = resolve_whisper_model(model, download_root)
     if log:
-        log(f"loading faster-whisper model={model} device={device} compute_type={compute_type}")
+        log(f"loading faster-whisper model={model} source={model_source} local_only={local_only} device={device} compute_type={compute_type}")
     whisper_model = WhisperModel(
-        model, device=device, compute_type=compute_type,
+        model_source, device=device, compute_type=compute_type,
         download_root=str(download_root) if download_root else None,
+        local_files_only=local_only,
     )
     if progress_callback:
         progress_callback(5, "模型加载完成，正在读取音视频")

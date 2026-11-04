@@ -53,12 +53,38 @@ def test_user_selected_download_directory_is_saved_and_validated(tmp_path):
     assert client.put("/api/browser/download-directory", json={"path": str(directory)}).status_code == 400
 
 
-def test_c_drive_and_relative_download_paths_are_rejected(tmp_path):
+def test_relative_download_path_is_rejected():
     with pytest.raises(ValueError, match="绝对路径"):
         validate_download_directory("downloads")
-    if tmp_path.drive.upper() != "C:":
-        with pytest.raises(ValueError, match="C 盘"):
-            validate_download_directory("C:\\")
+
+
+def test_writable_c_drive_download_directory_is_accepted(monkeypatch):
+    from unittest.mock import MagicMock
+    from backend_app.common.browser_engine import downloads
+
+    directory = MagicMock()
+    directory.drive = "C:"
+    directory.expanduser.return_value = directory
+    directory.resolve.return_value = directory
+    directory.is_absolute.return_value = True
+    directory.is_dir.return_value = True
+    monkeypatch.setattr(downloads, "Path", lambda _value: directory)
+    probe = MagicMock()
+    monkeypatch.setattr(downloads.tempfile, "TemporaryFile", probe)
+
+    assert validate_download_directory(r"C:\Users\test\Downloads") is directory
+    probe.assert_called_once_with(dir=directory)
+
+
+def test_unwritable_download_directory_is_rejected(tmp_path, monkeypatch):
+    from backend_app.common.browser_engine import downloads
+
+    def deny_write(**_kwargs):
+        raise PermissionError("read only")
+
+    monkeypatch.setattr(downloads.tempfile, "TemporaryFile", deny_write)
+    with pytest.raises(ValueError, match="不可写"):
+        validate_download_directory(str(tmp_path))
 
 
 def test_browser_engine_dispatches_strategy_and_closes_on_failure():

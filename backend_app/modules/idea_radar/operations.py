@@ -12,7 +12,7 @@ from .schemas import transcript_radar_schema
 
 
 def create_idea_radar_operations(
-    get_db_path, run_structured, load_runtime_settings,
+    get_db_path, get_agent_runtime, load_runtime_settings,
     base_dir, latest_douyin_cookie_file, log,
 ):
 
@@ -98,9 +98,13 @@ def create_idea_radar_operations(
 
 
     def call_hermes_structured(prompt, schema, model_config=None, timeout=None, task_name="viralAnalysis"):
-        from backend_app.agent.structured_runner import call_hermes_structured as generate
-        return generate(prompt, schema, settings=load_runtime_settings(),
-                        model_config=model_config, timeout=timeout, task_name=task_name, log=log)
+        model_profile_id = model_config.get("id") if isinstance(model_config, dict) else None
+        return get_agent_runtime().run_structured(
+            task_name,
+            prompt,
+            schema,
+            model_profile_id=model_profile_id,
+        )
 
 
     def run_codex_structured(prompt, schema, timeout=None):

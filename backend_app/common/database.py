@@ -88,4 +88,98 @@ def ensure_core_tables(db_path):
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         ''')
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ai_providers (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            provider_type TEXT NOT NULL CHECK(provider_type IN ('hermes', 'openai_compatible', 'codex_cli')),
+            base_url TEXT,
+            timeout_seconds INTEGER NOT NULL DEFAULT 300 CHECK(timeout_seconds BETWEEN 1 AND 3600),
+            enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
+            capabilities_json TEXT NOT NULL DEFAULT '{}',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ai_credentials (
+            id TEXT PRIMARY KEY,
+            provider_id TEXT NOT NULL,
+            credential_type TEXT NOT NULL DEFAULT 'api_key',
+            ciphertext TEXT NOT NULL,
+            nonce TEXT NOT NULL,
+            algorithm TEXT NOT NULL DEFAULT 'AES-256-GCM',
+            key_reference TEXT NOT NULL,
+            encryption_version INTEGER NOT NULL DEFAULT 1,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(provider_id, credential_type),
+            FOREIGN KEY(provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ai_model_profiles (
+            id TEXT PRIMARY KEY,
+            provider_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            model_name TEXT NOT NULL,
+            reasoning_effort TEXT NOT NULL DEFAULT '',
+            service_tier TEXT NOT NULL DEFAULT '',
+            temperature REAL,
+            max_tokens INTEGER,
+            extra_options_json TEXT NOT NULL DEFAULT '{}',
+            enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS agent_profiles (
+            agent_key TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            execution_mode TEXT NOT NULL CHECK(execution_mode IN ('structured', 'tool_loop')),
+            primary_model_profile_id TEXT,
+            fallback_model_profile_id TEXT,
+            timeout_seconds INTEGER NOT NULL DEFAULT 300 CHECK(timeout_seconds BETWEEN 1 AND 3600),
+            max_steps INTEGER NOT NULL DEFAULT 8 CHECK(max_steps BETWEEN 1 AND 100),
+            enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(primary_model_profile_id) REFERENCES ai_model_profiles(id) ON DELETE SET NULL,
+            FOREIGN KEY(fallback_model_profile_id) REFERENCES ai_model_profiles(id) ON DELETE SET NULL
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS agent_runs (
+            id TEXT PRIMARY KEY,
+            agent_key TEXT NOT NULL,
+            status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled', 'interrupted')),
+            input_json TEXT NOT NULL DEFAULT '{}',
+            output_json TEXT,
+            error_code TEXT,
+            error_message TEXT,
+            model_profile_id TEXT,
+            started_at DATETIME,
+            finished_at DATETIME,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(agent_key) REFERENCES agent_profiles(agent_key) ON DELETE RESTRICT,
+            FOREIGN KEY(model_profile_id) REFERENCES ai_model_profiles(id) ON DELETE SET NULL
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS agent_run_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            sequence INTEGER NOT NULL,
+            payload_json TEXT NOT NULL DEFAULT '{}',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(run_id, sequence),
+            FOREIGN KEY(run_id) REFERENCES agent_runs(id) ON DELETE CASCADE
+        )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_ai_model_profiles_provider ON ai_model_profiles(provider_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_agent_runs_status ON agent_runs(status, created_at)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_agent_run_events_run ON agent_run_events(run_id, sequence)')
         conn.commit()

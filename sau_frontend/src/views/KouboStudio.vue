@@ -1,25 +1,5 @@
 <template>
   <div class="studio">
-    <div v-if="!authorized" class="auth-gate">
-      <div class="auth-card">
-        <span>PRIVATE CONTENT SYSTEM</span>
-        <h1>管理员授权</h1>
-        <p>请输入服务器配置的管理员令牌，验证通过后进入口播生产工作台。</p>
-        <el-input
-          v-model="tokenInput"
-          type="password"
-          size="large"
-          show-password
-          placeholder="KOUBO_ADMIN_TOKEN"
-          @keyup.enter="authorize"
-        />
-        <el-button type="primary" size="large" :loading="authorizing" @click="authorize">
-          验证并进入
-        </el-button>
-        <small>令牌只保存在当前浏览器，不会写入口播项目。</small>
-      </div>
-    </div>
-    <template v-else>
     <header class="hero">
       <div>
         <span>CONTENT PIPELINE</span>
@@ -27,7 +7,6 @@
         <p>文案同步、手机提词、自动剪辑和发布资料在一个项目中流转。</p>
       </div>
       <div class="hero-actions">
-        <el-button size="large" @click="logout">退出授权</el-button>
         <el-button type="primary" size="large" @click="createProject">新建口播项目</el-button>
       </div>
     </header>
@@ -61,6 +40,11 @@
             <div><span>当前项目</span><h2>{{ selected.title || selected.topic || '未命名项目' }}</h2></div>
             <el-tag effect="dark">{{ statusLabel[selected.status] || selected.status }}</el-tag>
           </div>
+          <el-tabs v-model="activeTab" class="studio-tabs">
+          <el-tab-pane label="素材与抽帧" name="materials">
+            <KouboMaterials :key="selected.id" :project-id="selected.id" @uploaded="loadProjects" />
+          </el-tab-pane>
+          <el-tab-pane label="文案与提词" name="script">
           <label class="script-label">口播文案</label>
           <el-input
             v-model="script"
@@ -77,6 +61,8 @@
             <span>在手机提词器中输入以下一次性绑定码</span>
             <code>{{ bindingCode }}</code>
           </div>
+          </el-tab-pane>
+          <el-tab-pane label="剪辑与发布" name="publish">
           <section class="template-section">
             <div><strong>选择剪辑模板</strong><span>原片上传后创建 Windows 剪辑任务</span></div>
             <div class="templates">
@@ -113,11 +99,12 @@
             <div><strong>审核与发布</strong><span>确认成片和封面后交给现有发布中心</span></div>
             <el-button type="success" @click="sendToPublish">审核通过，送到发布中心</el-button>
           </section>
+          </el-tab-pane>
+          </el-tabs>
         </template>
         <el-empty v-else description="新建或选择一个项目开始" />
       </main>
     </div>
-    </template>
   </div>
 </template>
 
@@ -126,12 +113,12 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { kouboApi } from '@/api/koubo'
+import KouboMaterials from '@/components/KouboMaterials.vue'
+
+const activeTab = ref('materials')
 
 const projects = ref([])
 const devices = ref([])
-const authorized = ref(false)
-const tokenInput = ref('')
-const authorizing = ref(false)
 const selected = ref(null)
 const script = ref('')
 const saving = ref(false)
@@ -170,32 +157,6 @@ async function loadProjects() {
 async function loadDevices() {
   const response = await kouboApi.listDevices()
   devices.value = (response.data || []).filter((item) => !item.revoked_at)
-}
-
-async function authorize() {
-  const value = tokenInput.value.trim()
-  if (!value) return ElMessage.warning('请输入管理员令牌')
-  authorizing.value = true
-  localStorage.setItem('koubo_admin_token', value)
-  try {
-    await Promise.all([loadProjects(), loadDevices()])
-    authorized.value = true
-    tokenInput.value = ''
-    ElMessage.success('管理员授权成功')
-  } catch (error) {
-    localStorage.removeItem('koubo_admin_token')
-    ElMessage.error('管理员令牌无效')
-  } finally {
-    authorizing.value = false
-  }
-}
-
-function logout() {
-  localStorage.removeItem('koubo_admin_token')
-  authorized.value = false
-  projects.value = []
-  devices.value = []
-  selected.value = null
 }
 
 function selectProject(project) {
@@ -268,7 +229,7 @@ async function generateCover() {
       title: coverTitle.value,
       template: template.value
     })
-    const token = encodeURIComponent(localStorage.getItem('koubo_admin_token') || '')
+    const token = encodeURIComponent(localStorage.getItem('token') || '')
     coverUrl.value = `${apiBase}/api/koubo/assets/${response.data.id}/content?token=${token}`
     ElMessage.success('封面已生成')
   } finally {
@@ -296,11 +257,14 @@ async function sendToPublish() {
 }
 
 onMounted(async () => {
-  const saved = localStorage.getItem('koubo_admin_token')
-  if (!saved) return
-  tokenInput.value = saved
-  await authorize()
+  localStorage.removeItem('koubo_admin_token')
+  try {
+    await Promise.all([loadProjects(), loadDevices()])
+  } catch {
+    // 请求层显示加载错误或引导重新登录。
+  }
 })
+
 </script>
 
 <style scoped lang="scss">
@@ -308,17 +272,12 @@ onMounted(async () => {
 .studio::before,.studio::after { content:""; position:absolute; pointer-events:none; border:1px solid rgba(255,255,255,.86); border-radius:50%; transform:rotate(-18deg); }
 .studio::before { width:680px; height:300px; left:-160px; top:-130px; }.studio::after { width:780px; height:330px; right:-210px; bottom:-110px; }
 .studio > * { position:relative; z-index:1; }
-.auth-gate { min-height:calc(100vh - 180px); display:grid; place-items:center; padding:40px 20px; }
-.auth-card { width:min(460px,100%); display:grid; gap:18px; padding:38px; border:1px solid #e0e4ea; border-radius:24px; background:#fff; box-shadow:0 24px 80px #0f172a1f; }
-.auth-card > span { color:#a77b08; font-size:12px; font-weight:800; letter-spacing:.18em; }
-.auth-card h1,.auth-card p { margin:0; }
-.auth-card p,.auth-card small { color:#7b8492; line-height:1.7; }
 .hero { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding:28px 30px; border:1px solid rgba(255,255,255,.65); border-radius:18px; color:#18202d; background:rgba(255,255,255,.58); box-shadow:0 16px 40px rgba(73,103,155,.12); backdrop-filter:blur(12px); }
 .hero span { color:#f2c94c; font-size:11px; font-weight:800; letter-spacing:.18em; }
 .hero h1 { margin:8px 0; font-size:30px; }
 .hero p { margin:0; color:#71809a; }
 .hero-actions { display:flex; gap:10px; }
-.layout { display:grid; grid-template-columns:280px 1fr; gap:18px; margin-top:18px; }
+.layout { display:grid; grid-template-columns:220px minmax(0,1fr); gap:18px; margin-top:18px; }
 .project-list,.editor { min-height:600px; border:1px solid rgba(220,230,244,.86); border-radius:16px; background:rgba(255,255,255,.74); box-shadow:0 15px 35px rgba(73,103,155,.09); backdrop-filter:blur(14px); }
 .project-list { padding:14px; }
 .section-title { display:flex; justify-content:space-between; padding:8px; }
@@ -329,7 +288,7 @@ onMounted(async () => {
 .device-row { display:flex; align-items:center; justify-content:space-between; padding:10px 6px; }
 .device-row div { display:grid; gap:3px; }
 .device-row strong { font-size:13px; }
-.editor { padding:28px; }
+.editor { padding:20px; min-width:0; container-type:inline-size; }
 .editor-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:22px; }
 .editor-head span,.script-label { color:#8a93a2; font-size:12px; }
 .editor-head h2 { margin:5px 0 0; }

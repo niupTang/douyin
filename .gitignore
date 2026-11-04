@@ -197,10 +197,60 @@ db/backups/
 cookiesFile
 uploadFile
 videoFile
+koubo_data/
 release-cli/
 
 
-# Local validation and build caches
-.validation-data/
-.pytest-*/
-.cache/
+# Local packaging resources, caches, and runtime data
+/build-resources/
+/release/
+/release-*/
+/.npm-cache/
+/.playwright-cli/
+/.pytest-*/
+/.venv_*/
+/.superpowers/
+/.understand-anything/
+/data/
+/output/
+/outputs/
+/generated_assets/
+/assets/hangzhou-codex-open-source-baoyu-ip-illustrations/
+/logs/backend.json
+/logs/*.png
+/sau_token.txt
+/settings.json
+/refill_log*.txt
+
+# Standalone cloned repositories (managed separately)
+/tools/archify/
+/tools/gbro-collage-broll/
+/ios/OpenPrompter/
+/skills/jianying-editor/
+
+# Generated media; retain scripts and project sources
+/cover-work/**/*.png
+/cover-work/**/*.jpg
+/cover-work/**/*.wav
+/videos/*.mp4
+/videos/*.mp3
+/videos/*.png
+/videos/ai-programmer-business-moat/*.wav
+/videos/ai-programmer-business-moat/renders/
+/videos/ai-programmer-business-moat/audio_request.json
+/videos/ai-programmer-business-moat/audio_meta.json
+/videos/ai-programmer-business-moat/meta.json
+/cover-work/**/*.mp4
+/cover-work/**/*.mp3
+/cover-work/**/*.webm
+/cover-work/**/*.txt
+/videos/**/*.mp3
+/videos/**/*.mp4
+/videos/**/*.png
+/videos/**/*.jpg
+/videos/**/*.wav
+/videos/ai-programmer-business-moat/.thumbnails/
+/videos/ai-programmer-business-moat/snapshots/
+/videos/*.txt
+/refill_reqs.txt
+**/.waveform-cache/

@@ -2,7 +2,7 @@ import re
 from uuid import uuid4
 
 from backend_app.common.browser_engine.downloads import validate_download_directory
-from backend_app.common import app_settings as settings_repository
+from backend_app.modules.ai_settings import repository as settings_repository
 
 
 DOWNLOAD_DIRECTORY_KEY = "browser_download_directory"
@@ -21,7 +21,7 @@ def get_download_directory(db_path):
 def require_download_directory(db_path):
     setting = get_download_directory(db_path)
     if not setting["valid"]:
-        raise ValueError("下载目录未设置或已失效，请重新选择非 C 盘目录")
+        raise ValueError("下载目录未设置或已失效，请重新选择目录")
     return validate_download_directory(setting["path"])
 
 

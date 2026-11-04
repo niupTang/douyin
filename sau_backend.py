@@ -1,6 +1,5 @@
 import os
 import secrets
-import json
 import sys
 import threading
 from pathlib import Path
@@ -13,6 +12,7 @@ from backend_app.agent.gateway_client import (
     public_hermes_settings as agent_public_hermes_settings,
 )
 from backend_app.agent.model_registry import get_agent_models as agent_get_agent_models, normalize_agent_model as agent_normalize_agent_model
+from backend_app.agent.runtime import AgentRuntime
 from backend_app.modules.benchmark import repository as benchmark_repository
 from backend_app.modules.benchmark.routes import create_benchmark_blueprint
 from backend_app.modules.benchmark.operations import create_benchmark_operations
@@ -40,8 +40,14 @@ from backend_app.modules.accounts.routes import create_accounts_blueprint
 from backend_app.modules.dashboard.routes import create_dashboard_blueprint
 from backend_app.modules.materials.routes import create_materials_blueprint
 from backend_app.modules.runtime_logs import RuntimeLogService
-from backend_app.modules.settings.routes import create_legacy_ai_settings_blueprint
-from backend_app.agent.structured_runner import call_hermes_structured as legacy_generate
+from backend_app.modules.ai_settings import AiSettingsService
+from backend_app.modules.agent_runs.sunbird_tools import build_sunbird_tool_registry
+from backend_app.modules.ai_settings.routes import create_ai_settings_blueprint
+from backend_app.modules.ai_settings.legacy_routes import create_legacy_ai_settings_blueprint
+from backend_app.modules.agent_runs.routes import create_agent_runs_blueprint
+from backend_app.modules.chat.routes import create_chat_blueprint
+from backend_app.modules.chat.service import ChatService
+from backend_app.modules.chat.tools import register_chat_tools
 from backend_app.common.database import ensure_core_tables as ensure_base_tables
 from backend_app.licensing.service import license_registry
 from backend_app.licensing.routes import create_license_blueprint
@@ -50,6 +56,8 @@ from backend_app.modules.account_diagnosis import repository as account_diagnosi
 from backend_app.modules.account_diagnosis.routes import create_account_diagnosis_blueprint
 from backend_app.modules.mcp_server.routes import create_mcp_blueprint
 from backend_app.modules.mcp_server.handlers import create_mcp_handlers
+from backend_app.modules.tool_execution.policy import create_application_gateway
+from backend_app.modules.tool_execution.search_tools import register_candidate_search_tools
 from backend_app.modules.benchmark.discovery import create_candidate_discovery
 from backend_app.modules.runtime.routes import create_runtime_blueprint
 from backend_app.modules.auth.routes import create_auth_blueprint
@@ -57,7 +65,10 @@ from backend_app.modules.auth.security import configure_auth_policy
 
 
 idea_radar_job_registry = IdeaRadarJobRegistry()
+agent_runtime_instance = None
+agent_runtime_lock = threading.Lock()
 runtime_log_service = RuntimeLogService(BASE_DIR)
+tool_execution_gateway = create_application_gateway(license_registry, runtime_log_service)
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SAU_SECRET_KEY") or secrets.token_hex(32)
 AUTH_TOKEN_MAX_AGE = int(os.environ.get("SAU_AUTH_TOKEN_MAX_AGE", str(7 * 24 * 60 * 60)))
@@ -91,28 +102,22 @@ def get_settings_path():
     return Path(BASE_DIR / "settings.json")
 
 
-
+def get_ai_settings_service():
+    return AiSettingsService(get_db_path())
 
 
 def load_runtime_settings():
-    settings_path = get_settings_path()
-    if not settings_path.exists():
-        return {}
     try:
-        data = json.loads(settings_path.read_text(encoding="utf-8-sig"))
-        return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
+        service = get_ai_settings_service()
+        service.migrate_legacy_settings(get_settings_path(), remove_source=True)
+        return service.legacy_settings()
+    except Exception as exc:
+        backend_log(f"AI settings database load failed: {exc}")
+        raise
 
 
 def save_runtime_settings(settings):
-    settings_path = get_settings_path()
-    settings_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = settings_path.with_suffix(".json.tmp")
-    temporary_path.write_text(
-        json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    temporary_path.replace(settings_path)
+    return get_ai_settings_service().apply_legacy_settings(settings)
 
 
 def get_hermes_settings(settings=None):
@@ -140,6 +145,9 @@ def ensure_core_tables():
     ensure_publish_records_table()
     ensure_douyin_benchmark_tables()
     ensure_douyin_own_tables()
+    get_ai_settings_service().migrate_legacy_settings(
+        get_settings_path(), remove_source=True
+    )
 
 
 def safe_print(*args, **kwargs):
@@ -155,15 +163,35 @@ def backend_log(message):
     runtime_log_service.log(message=message)
 
 
+def start_agent_content_search(keyword, target_count):
+    task_id = benchmark_repository.create_search_task(get_db_path(), keyword, target_count)
+    thread = threading.Thread(
+        target=run_douyin_content_search_task,
+        args=(task_id, keyword, target_count, latest_douyin_cookie_file()),
+        name=f"agent-content-search-{task_id}",
+        daemon=True,
+    )
+    thread.start()
+    return {"task_id": task_id, "status": "pending"}
 
 
-
-
-
-
-def run_structured(task_name, prompt, schema):
-    return legacy_generate(prompt, schema, settings=load_runtime_settings(),
-                           task_name=task_name, log=backend_log)
+def get_agent_runtime():
+    global agent_runtime_instance
+    if agent_runtime_instance is not None:
+        return agent_runtime_instance
+    with agent_runtime_lock:
+        if agent_runtime_instance is None:
+            settings_service = get_ai_settings_service()
+            settings_service.migrate_legacy_settings(get_settings_path(), remove_source=True)
+            settings_service.ensure_default_agent_profiles()
+            agent_runtime_instance = AgentRuntime(
+                get_db_path(),
+                base_dir=BASE_DIR,
+                settings_service=settings_service,
+                tool_registry=agent_tool_registry,
+                log=backend_log,
+            )
+    return agent_runtime_instance
 
 
 @app.after_request
@@ -195,7 +223,7 @@ def latest_douyin_cookie_file():
 
 
 own_content_operations = create_own_content_operations(
-    get_db_path, run_structured, BASE_DIR, backend_log
+    get_db_path, get_agent_runtime, BASE_DIR, backend_log
 )
 save_own_douyin_import = own_content_operations.save_import
 run_own_douyin_creator_export = own_content_operations.export_account
@@ -208,7 +236,7 @@ run_own_video_analysis = own_content_operations.analyze_video
 
 
 benchmark_operations = create_benchmark_operations(
-    get_db_path, idea_radar_job_registry, run_structured
+    get_db_path, idea_radar_job_registry, get_agent_runtime
 )
 get_douyin_benchmark_video_urls = benchmark_operations.list_video_urls
 upsert_douyin_benchmark = benchmark_operations.upsert_account
@@ -223,7 +251,7 @@ save_douyin_video_analysis = benchmark_operations.save_analysis
 
 
 idea_radar_operations = create_idea_radar_operations(
-    get_db_path, run_structured, load_runtime_settings,
+    get_db_path, get_agent_runtime, load_runtime_settings,
     BASE_DIR, latest_douyin_cookie_file, backend_log,
 )
 parse_idea_radar_transcript = idea_radar_operations.parse_idea_radar_transcript
@@ -256,7 +284,7 @@ def update_idea_radar_progress(video_id, stage, percent, message, status="proces
 
 def generate_identity_script(identity_profile, radar_result, benchmark_analysis=None):
     return generate_identity_script_core(
-        run_structured, identity_profile, radar_result, benchmark_analysis,
+        get_agent_runtime(), identity_profile, radar_result, benchmark_analysis,
     )
 
 
@@ -300,7 +328,9 @@ def start_idea_radar_pipeline(video_id, target_direction, force=False, force_tra
 
 publish_video_payload = create_publish_operation(get_db_path)
 
-ensure_core_tables()
+ensure_publish_records_table()
+ensure_douyin_benchmark_tables()
+ensure_douyin_own_tables()
 account_diagnosis_repository.ensure_tables(get_db_path())
 
 # 获取当前目录（假设 index.html 和 assets 在这里）
@@ -329,15 +359,33 @@ def run_douyin_content_search_task(task_id, keyword, target_count, cookie_file):
 
 
 candidate_discovery = create_candidate_discovery(get_db_path)
+candidate_search_tool_names = register_candidate_search_tools(
+    tool_execution_gateway, candidate_discovery, latest_douyin_cookie_file
+)
 mcp_tool_handlers = create_mcp_handlers(
     get_db_path, latest_douyin_cookie_file, sync_one_douyin_benchmark,
     generate_douyin_video_analysis, save_douyin_video_analysis,
     load_idea_radar_video, start_idea_radar_pipeline, generate_identity_script,
     list_all_own_douyin_videos, publish_video_payload,
+    gateway=tool_execution_gateway,
+    extra_tool_names=candidate_search_tool_names,
 )
+agent_tool_registry = build_sunbird_tool_registry(
+    get_db_path(), start_agent_content_search, gateway=tool_execution_gateway,
+    extra_tool_names=candidate_search_tool_names,
+)
+register_chat_tools(agent_tool_registry, get_db_path())
+chat_service = ChatService(get_db_path(), BASE_DIR, get_agent_runtime, tool_execution_gateway)
+
+
+app.register_blueprint(
+    create_ai_settings_blueprint(get_ai_settings_service, valid_instance_token)
+)
+app.register_blueprint(create_agent_runs_blueprint(get_agent_runtime))
+app.register_blueprint(create_chat_blueprint(chat_service))
 app.register_blueprint(create_browser_settings_blueprint(get_db_path))
 app.register_blueprint(create_account_diagnosis_blueprint(
-    get_db_path, load_runtime_settings, run_structured, backend_log
+    get_db_path, load_runtime_settings, get_agent_runtime, backend_log
 ))
 app.register_blueprint(create_own_content_blueprint(
     get_db_path, BASE_DIR, save_own_douyin_import,

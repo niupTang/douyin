@@ -42,7 +42,7 @@ def resolve_executable(command, label, settings_path=None):
 
 
 def run_codex_cli_structured(prompt, schema, *, base_dir, codex_cmd, codex_model, timeout=180, log=None):
-    resolved_cmd = resolve_executable(codex_cmd, "Codex CLI", Path(base_dir) / "settings.json")
+    resolved_cmd = resolve_executable(codex_cmd, "Codex CLI", Path(base_dir) / "db" / "database.db")
     if log:
         log(f"codex structured path: {resolved_cmd} (configured={codex_cmd})")
     with tempfile.TemporaryDirectory(prefix="agent-codex-") as tmp_dir:

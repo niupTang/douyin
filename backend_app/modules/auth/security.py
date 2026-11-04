@@ -10,6 +10,12 @@ def configure_auth_policy(app, token_serializer, auth_token_max_age, license_reg
 
     def parse_auth_token():
         auth_header = request.headers.get("Authorization", "")
+        # Media elements cannot attach Authorization headers. Accept the same
+        # signed application session only on read-only koubo asset URLs.
+        if (not auth_header and request.method == "GET"
+                and request.path.startswith("/api/koubo/assets/")
+                and request.path.endswith("/content")):
+            auth_header = "Bearer " + request.args.get("token", "")
         if not auth_header.startswith("Bearer "):
             return None
         token = auth_header.removeprefix("Bearer ").strip()

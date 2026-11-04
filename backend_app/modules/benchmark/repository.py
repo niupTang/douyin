@@ -599,3 +599,33 @@ def list_idea_radar_videos(db_path, parse_metric_number, limit=80):
         videos.append(item)
     videos.sort(key=lambda item: (item["like_score"], item.get("id") or 0), reverse=True)
     return videos[:limit]
+
+
+def save_single_video(db_path, profile):
+    """Merge a single work while retaining previously collected author statistics."""
+    from myUtils.douyin_benchmark import normalize_douyin_user_url
+
+    ensure_tables(db_path)
+    with connect(db_path) as conn:
+        account_id = upsert_account(db_path, profile['homepage_url'], normalize_douyin_user_url, connection=conn)
+        row = conn.execute('SELECT * FROM douyin_benchmark_accounts WHERE id = ?', (account_id,)).fetchone()
+        merged = dict(row)
+        merged.update({key: value for key, value in profile.items()
+                       if value is not None and value != '' and key != 'raw_data'})
+        raw_data = json.loads(row['raw_data'] or '{}')
+        raw_data['last_video_import'] = profile.get('raw_data') or {}
+        merged['raw_data'] = raw_data
+        videos = []
+        for video in profile.get('videos') or []:
+            previous = conn.execute(
+                'SELECT * FROM douyin_benchmark_videos WHERE account_id = ? AND video_url = ?',
+                (account_id, video['video_url']),
+            ).fetchone()
+            combined = {key: previous[key] for key in (
+                'title', 'cover_url', 'like_count', 'comment_count', 'share_count', 'collect_count'
+            )} if previous else {}
+            combined.update({key: value for key, value in video.items() if value is not None and value != ''})
+            videos.append(combined)
+        merged['videos'] = videos
+        stats = save_sync(db_path, account_id, merged, connection=conn)
+    return {'id': account_id, 'sync': stats, 'account': profile, 'input_type': 'video'}

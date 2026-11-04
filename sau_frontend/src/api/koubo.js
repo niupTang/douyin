@@ -1,6 +1,19 @@
 import { http } from '@/utils/request'
 
 export const kouboApi = {
+  uploadVideo(projectId, file) {
+    const form = new FormData()
+    form.append('file', file)
+    return http.post(`/api/koubo/projects/${projectId}/videos`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  videoInfo(assetId) {
+    return http.get(`/api/koubo/assets/${assetId}/video-info`)
+  },
+  saveFrame(assetId, seconds) {
+    return http.post(`/api/koubo/assets/${assetId}/frames`, { seconds })
+  },
   listProjects() {
     return http.get('/api/koubo/projects')
   },

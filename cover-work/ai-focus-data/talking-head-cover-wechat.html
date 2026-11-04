@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI工具别贪多 - 公众号横版</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #111827; font-family: "Microsoft YaHei UI", "Noto Sans CJK SC", system-ui, sans-serif; }
+.cover { width: 1280px; height: 720px; position: relative; overflow: hidden; background:
+  radial-gradient(circle at 85% 18%, rgba(79, 111, 255, .5), transparent 26%),
+  radial-gradient(circle at 12% 85%, rgba(255, 199, 82, .32), transparent 28%),
+  linear-gradient(135deg, #151515 0%, #27313a 52%, #151515 100%); color: #fff; }
+.cover::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px); background-size: 44px 44px; mask-image: linear-gradient(180deg, #000 0%, transparent 85%); }
+.stage { position: relative; z-index: 2; width: 100%; height: 100%; display: grid; gap: 24px; }
+.copy { position: relative; z-index: 4; display: flex; flex-direction: column; gap: 28px; }
+.badge { position: absolute; z-index: 3; padding: 13px 20px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; color: #dbeafe; background: rgba(7,17,31,.58); font-size: 22px; }
+.title { display: flex; flex-direction: column; gap: 8px; margin-top: 48px; font-weight: 900; letter-spacing: 0; color: #fff; -webkit-text-stroke: 6px #111; paint-order: stroke fill; text-shadow: 0 10px 0 rgba(0,0,0,.22); }
+.title span:nth-child(2) { color: #ffd166; }
+.subtitle { max-width: 760px; padding: 10px 18px; color: #fff; background: rgba(0,0,0,.54); font-weight: 900; line-height: 1.25; -webkit-text-stroke: 2px #111; paint-order: stroke fill; }
+.bottom { position: relative; z-index: 4; color: #b268ff; font-weight: 950; letter-spacing: 0; -webkit-text-stroke: 6px #111; paint-order: stroke fill; text-shadow: 0 8px 0 rgba(255,255,255,.8); }
+.portrait { position: absolute; inset: 0; z-index: 1; box-shadow: none; display: grid; place-items: center; overflow: hidden; border: 0; }
+.accent { position: absolute; z-index: 1; right: -120px; bottom: -110px; width: 520px; height: 520px; border-radius: 50%; border: 80px solid rgba(79,111,255,.24); }
+.safe { position: absolute; left: 0; right: 0; bottom: 0; height: 20%; background: linear-gradient(180deg, transparent, rgba(0,0,0,.26)); pointer-events: none; }
+
+    .portrait {
+      background-image: linear-gradient(180deg, rgba(0,0,0,.00), rgba(0,0,0,.18)), url("file:///E:/social-auto-upload/cover-work/ai-focus-data/portrait.png");
+      background-size: cover;
+      background-position: center center;
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+      border-radius: 0;
+      z-index: 1;
+      filter: saturate(1.08) contrast(1.04);
+      box-shadow: none;
+    }
+    .portrait::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,.46) 0%, rgba(0,0,0,.06) 32%, rgba(0,0,0,.10) 56%, rgba(0,0,0,.58) 100%),
+        radial-gradient(circle at 50% 48%, transparent 0 34%, rgba(0,0,0,.18) 74%);
+    }
+
+
+        .stage { grid-template-columns: 52% 48%; padding: 46px 58px; }
+        .copy { justify-content: center; }
+        .title { font-size: 82px; line-height: 1.02; }
+        .subtitle { font-size: 30px; }
+        .bottom { font-size: 58px; }
+        .portrait { width: 520px; height: 680px; justify-self: end; align-self: center; border-radius: 22px; }
+        .badge { display: none; }
+
+</style>
+</head>
+<body>
+<main class="cover">
+  <div class="badge">公众号横版</div>
+  <div class="accent"></div>
+  <div class="portrait"></div>
+  <section class="stage">
+    <div class="copy">
+      <h1 class="title"><span>AI工具别贪多</span></h1>
+      <div class="subtitle">普通人真正要做的是克制</div>
+    </div>
+    <div class="bottom">聚焦一件事</div>
+  </section>
+  <div class="safe"></div>
+</main>
+</body>
+</html>

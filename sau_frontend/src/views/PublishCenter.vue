@@ -452,13 +452,16 @@ import { useAccountStore } from '@/stores/account'
 import { useAppStore } from '@/stores/app'
 import { materialApi } from '@/api/material'
 import { kouboApi } from '@/api/koubo'
+import { useUserStore } from '@/stores/user'
+import request from '@/utils/request'
 
 // API base URL
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5409'
 
 // Authorization headers
+const userStore = useUserStore()
 const authHeaders = computed(() => ({
-  'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+  'Authorization': `Bearer ${userStore.sessionToken || ''}`
 }))
 
 // 当前激活的tab
@@ -530,13 +533,13 @@ const loadKouboPublishDraft = () => {
     tab.fileList = [{
       name: draft.video.original_name || 'final.mp4',
       path: draft.video.absolute_path,
-      url: `${apiBaseUrl}${draft.video.content_url}?token=${encodeURIComponent(localStorage.getItem('koubo_admin_token') || '')}`,
+      url: `${apiBaseUrl}${draft.video.content_url}?token=${encodeURIComponent(localStorage.getItem('token') || '')}`,
       size: draft.video.size || 0
     }]
     tab.displayFileList = [...tab.fileList]
     tab.cover = {
       path: draft.cover.absolute_path,
-      url: `${apiBaseUrl}${draft.cover.content_url}?token=${encodeURIComponent(localStorage.getItem('koubo_admin_token') || '')}`
+      url: `${apiBaseUrl}${draft.cover.content_url}?token=${encodeURIComponent(localStorage.getItem('token') || '')}`
     }
     tab.kouboProjectId = draft.project_id
     localStorage.removeItem('koubo_publish_draft')
@@ -804,15 +807,7 @@ const confirmPublish = async (tab) => {
     }
     
     // 调用后端发布API
-    fetch(`${apiBaseUrl}/postVideo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders.value
-      },
-      body: JSON.stringify(publishData)
-    })
-    .then(response => response.json())
+    request.post('/postVideo', publishData)
     .then(data => {
       if (data.code === 200) {
         if (tab.kouboProjectId) {
@@ -838,20 +833,20 @@ const confirmPublish = async (tab) => {
           kouboApi.markPublished(tab.kouboProjectId, {
             platform: tab.selectedPlatform,
             status: 'failed',
-            error_message: data.msg || '发布失败'
+            error_message: data.message || data.msg || '发布失败'
           }).catch(error => console.error('Failed to update koubo project status', error))
         }
         tab.publishStatus = {
-          message: `发布失败：${data.msg || '发布失败'}`,
+          message: `发布失败：${data.message || data.msg || '发布失败'}`,
           type: 'error'
         }
-        reject(new Error(data.msg || '发布失败'))
+        reject(new Error(data.message || data.msg || '发布失败'))
       }
     })
     .catch(error => {
       console.error('发布错误:', error)
       tab.publishStatus = {
-        message: '发布失败，请检查网络连接',
+        message: `发布失败：${error.sessionRecoveryMessage || error.response?.data?.message || error.response?.data?.msg || error.message || '请检查网络连接'}`,
         type: 'error'
       }
       reject(error)

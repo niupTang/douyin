@@ -1,5 +1,4 @@
 import hashlib
-import hmac
 import os
 import uuid
 from functools import wraps
@@ -10,6 +9,7 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 from .cover import render_cover
 from .templates import TEMPLATE_DEFINITIONS, template_snapshot
+from backend_app.modules.video_materials.routes import register_material_routes
 
 
 def response(data=None, message=None, status=200):
@@ -21,14 +21,13 @@ def bearer_token():
     return value[7:].strip() if value.startswith("Bearer ") else ""
 
 
-def create_koubo_blueprint(store, storage_root=None, admin_token=None, allow_unsafe_dev_admin=False):
+def create_koubo_blueprint(store, storage_root=None, control_auth_required=None, allow_unsafe_dev_admin=False):
     blueprint = Blueprint("koubo", __name__, url_prefix="/api/koubo")
     storage_root = Path(
         storage_root
         or os.environ.get("KOUBO_STORAGE_ROOT")
         or store.database_path.parent.parent / "koubo_data"
     )
-    admin_token = admin_token or os.environ.get("KOUBO_ADMIN_TOKEN")
 
     def device_required(device_type=None):
         def decorator(handler):
@@ -42,17 +41,16 @@ def create_koubo_blueprint(store, storage_root=None, admin_token=None, allow_uns
         return decorator
 
     def admin_required(handler):
+        if control_auth_required:
+            return control_auth_required(handler)
         @wraps(handler)
         def wrapped(*args, **kwargs):
-            supplied = bearer_token() or request.args.get("token", "")
-            if not admin_token:
-                if allow_unsafe_dev_admin:
-                    return handler(*args, **kwargs)
-                return response(message="未配置口播管理员令牌", status=503)
-            if not hmac.compare_digest(supplied, admin_token):
-                return response(message="管理员令牌无效", status=401)
-            return handler(*args, **kwargs)
+            if allow_unsafe_dev_admin:
+                return handler(*args, **kwargs)
+            return response(message="口播服务尚未接入应用登录验证", status=503)
         return wrapped
+
+    register_material_routes(blueprint, store, storage_root, admin_required, response)
 
     @blueprint.get("/health")
     def health():
